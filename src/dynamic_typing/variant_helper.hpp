@@ -10,7 +10,7 @@ namespace std
     };
 
     template <class... Ts>
-    overloaded(Ts...)->overloaded<Ts...>;
+    overloaded(Ts...) -> overloaded<Ts...>;
 
 } // namespace std
 

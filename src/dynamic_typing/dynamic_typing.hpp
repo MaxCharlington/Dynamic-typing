@@ -17,22 +17,21 @@ concept type_t = supported_types_checker<T>;
 
 using data_t = std::variant<int64_t, long double, bool>;
 
-
 class var
 {
     data_t data;
-public:
-    var(type_t auto variable) : data([&]() constexpr {
-                                    using Type = decltype(variable);
-                                    if constexpr (std::is_same_v<Type, bool>)
-                                        return data_t(variable);
-                                    else if (std::is_integral_v<Type>)
-                                        return data_t(static_cast<int64_t>(variable));
-                                    else if (std::is_floating_point_v<Type>)
-                                        return data_t(static_cast<long double>(variable));
-                                }()) {}
 
+public:
+    var() = default;
+    var(type_t auto);
+    var(var&&) = default;
     var(data_t &&);
+    //var(const type_t auto&); maybe not required
+    auto operator=(const type_t auto) -> var&;
+    auto operator=(var&&) -> var& = default;
+    auto operator=(const var&) -> var& = default;
+
+    //Special ctor
 
     // Operations with data types
     auto operator+(const type_t auto &) -> var;
@@ -51,6 +50,30 @@ public:
     //IO
     friend auto operator<<(std::ostream &, const var &) -> std::ostream &;
 };
+
+var::var(type_t auto variable) : data([&]() constexpr {
+    using Type = decltype(variable);
+    if constexpr (std::is_same_v<Type, bool>)
+        return data_t(variable);
+    else if (std::is_integral_v<Type>)
+        return data_t(static_cast<int64_t>(variable));
+    else if (std::is_floating_point_v<Type>)
+        return data_t(static_cast<long double>(variable));
+}()) {}
+
+auto var::operator=(const type_t auto variable) -> var&
+{
+    data = [&]() constexpr {
+        using Type = decltype(variable);
+        if constexpr (std::is_same_v<Type, bool>)
+            return data_t(variable);
+        else if (std::is_integral_v<Type>)
+            return data_t(static_cast<int64_t>(variable));
+        else if (std::is_floating_point_v<Type>)
+            return data_t(static_cast<long double>(variable));
+    }();
+    return *this;
+}
 
 auto var::operator+(const type_t auto &operand) -> var
 {

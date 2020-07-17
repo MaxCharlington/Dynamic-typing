@@ -7,6 +7,12 @@ int main()
     a = 9 + a;
     var b = 10;
     a = 10.25 - b - 0.1;
+
+    struct {
+        var a;
+        var b;
+    } str;
+    str.a = 0.5;
     using std::cout;
-    cout << 3 / b << '\n';
+    cout << str.a << '\n';
 }

@@ -1,3 +1,16 @@
 1. add support for strings
 2. add floating point optimization
 3. add modules support
+4. add support for structs
+
+Ctors:
+1 default(defaulted) +
+2 from elementary copy(defined) + 
+3 from var copy() move(defaulted)
+4 from variant move (defined)
+5 from struct
+
+Assignments:
+1 
+
+WRITE TESTS
