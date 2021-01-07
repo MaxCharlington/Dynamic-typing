@@ -3,17 +3,31 @@
 
 int main()
 {
-    var a = 6;
-    a = 9 + a;
-    a = a + 9;
-    var b = 10;
-    a = 10.25 - b - 0.1;
+    // Integer
+    var integer = 1;
+    integer = 2ll;
+    integer + 5;
+    integer = integer + 2u;
+    
+    //integer += 2;
+    //integer / 2;
+    //integer % 5;
 
-    struct {
-        var a;
-        var b;
-    } str;
-    str.a = 0.5;
+    // Float
+    var floating = 1.5;
+    floating = 2.6f;
+    floating + 5;
+    //floating += 2;
+    //floating / 2;
+    //floating % 5;
 
-    std::cout << a << '\n';
+    //Bool
+    var boolean = true;
+    boolean = false;
+    //if (boolean) {}
+
+    //String
+    std::string a = "str";
+    var string = a;
+    //var string2 = "str";
 }

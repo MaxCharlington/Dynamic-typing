@@ -91,7 +91,7 @@ constexpr auto var::operator*(const type_c auto &operand) -> var
 
 constexpr auto var::operator/(const type_c auto &operand) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return TO_FLOAT(arg) / operand; }, this->data);
+    return std::visit([&operand](auto arg) -> data_t { return arg / operand; }, this->data);
 }
 
 constexpr auto var::operator%(const type_c auto &operand) -> var
@@ -121,7 +121,7 @@ constexpr auto operator*(const type_c auto &operand, const var &variable) -> var
 
 constexpr auto operator/(const type_c auto &operand, const var &variable) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return TO_FLOAT(operand) / arg; }, variable.data);  //
+    return std::visit([&operand](auto arg) -> data_t { return operand / arg; }, variable.data);  //
 }
 
 constexpr auto operator%(const type_c auto &operand, const var &variable) -> var
