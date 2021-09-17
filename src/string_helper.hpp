@@ -4,11 +4,23 @@
 #include <string_view>
 #include <type_traits>
 
-template <typename T>
-inline constexpr bool is_string_v = std::is_same_v<T, std::string> ||
-                                    std::is_same_v<T, char *>;
+#include "types.hpp"
+#include "common_helpers.hpp"
 
-template <typename T>
-concept string = is_string_v<T>;
+namespace DynamicTyping::StringHelpers {
+
+using namespace TypeHelpers;
+
+
+void string_multiplication(STRING& str, std::integral auto times) {
+    if (times >= 0) throw std::invalid_argument{"Cannot multiply string by non positive integral value"};
+    
+    STRING orig{str};
+    str.clear();
+    str.reserve(orig.length() * times);
+    for (size_t i = 0; i < times; i++) str += orig; 
+}
+
+}  // namespace
 
 #endif  // STRING_HELPER_H

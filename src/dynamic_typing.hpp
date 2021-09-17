@@ -7,10 +7,25 @@
 #include <type_traits>
 #include <string_view>
 #include <cmath>
+#include <stdexcept>
 
 #include "types.hpp"
 #include "variant_helper.hpp"
 #include "string_helper.hpp"
+#include "common_helpers.hpp"
+
+
+namespace DynamicTyping {
+
+namespace dt = DynamicTyping;
+namespace sh = StringHelpers;
+namespace th = TypeHelpers;
+namespace ch = CommonHelpers;
+
+using namespace th;
+using namespace ch;
+
+const auto EXCLUDE_STRING = DataType::STRING;
 
 class var
 {
@@ -25,24 +40,59 @@ public:
     
     constexpr var(type_c auto);
     var(data_t &&);
-    constexpr auto operator=(const type_c auto) -> var&;
+    constexpr auto operator=(type_c auto) -> var&;
     //var(const type_c auto&); maybe not required
 
 
-    constexpr auto operator+(const type_c auto &) -> var;
-    constexpr auto operator-(const type_c auto &) -> var;
-    constexpr auto operator*(const type_c auto &) -> var;
-    constexpr auto operator/(const type_c auto &) -> var;
-    constexpr auto operator%(const type_c auto &) -> var;
+    // cppreference "operator overloading" 
+    // https://en.cppreference.com/w/cpp/language/operators
+    
+    // Arithmetic (maths)
+    constexpr auto operator+(const type_c auto &) const -> var;
+    constexpr auto operator-(const type_c<EXCLUDE_STRING> auto &) const -> var;
+    constexpr auto operator*(const type_c<EXCLUDE_STRING> auto &) const -> var;
+    constexpr auto operator/(const type_c<EXCLUDE_STRING> auto &) const -> var;
+    constexpr auto operator%(const type_c<EXCLUDE_STRING> auto &) const -> var;
     constexpr friend auto operator+(const type_c auto &, const var &) -> var;
-    constexpr friend auto operator-(const type_c auto &, const var &) -> var;
+    constexpr friend auto operator-(const type_c<EXCLUDE_STRING> auto &, const var &) -> var;
     constexpr friend auto operator*(const type_c auto &, const var &) -> var;
-    constexpr friend auto operator/(const type_c auto &, const var &) -> var;
-    constexpr friend auto operator%(const type_c auto &, const var &) -> var;
+    constexpr friend auto operator/(const type_c<EXCLUDE_STRING> auto &, const var &) -> var;
+    constexpr friend auto operator%(const type_c<EXCLUDE_STRING> auto &, const var &) -> var;
 
-    operator data_t();
+    // Assignment arithmetic (maths) (non copy/move)
+    constexpr auto operator+=(const type_c auto &) -> var&;
+    constexpr auto operator-=(const type_c<EXCLUDE_STRING> auto &) -> var&;
+    constexpr auto operator*=(const type_c<EXCLUDE_STRING> auto &) -> var&;
+    constexpr auto operator/=(const type_c<EXCLUDE_STRING> auto &) -> var&;
+    constexpr auto operator%=(const type_c<EXCLUDE_STRING> auto &) -> var&;
+    constexpr friend auto operator+=(const type_c auto & op1, const var &) -> decltype(op1);
+    constexpr friend auto operator-=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
+    constexpr friend auto operator*=(const type_c auto & op1, const var &) -> decltype(op1);
+    constexpr friend auto operator/=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
+    constexpr friend auto operator%=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
+
+    operator data_t() const;
+
+    // Universal conversion operator
+    template <th::supported_type T>
+    operator T() const;
+
     constexpr friend auto operator<<(std::ostream &, const var &) -> std::ostream &;
+
+    friend auto type(const var&);
 };
+
+auto type(const var& variable) {
+    return  std::visit(
+                overloaded{
+                    [&operand](INTEGER arg) { return operand % arg; },
+                    [&operand](FLOAT arg) { return std::fmod(operand, arg); },
+                    [&operand](BOOL arg) { return operand % arg; },
+                    [&operand](const STRING& arg) { throw std::invalid_argument{"Cannot use operator% on strings"}; },
+                },
+                variable.data
+            );
+}
 
 var::var(data_t && data_variant) : data{std::move(data_variant)} {}
 
@@ -54,11 +104,11 @@ constexpr var::var(type_c auto variable) : data{[&]() {
         return data_t(TO_INTEGER(variable));
     else if constexpr (std::is_floating_point_v<Type>)
         return data_t(TO_FLOAT(variable));
-    else if constexpr (is_string_v<Type>) 
+    else if constexpr (th::is_string_v<Type>) 
         return data_t(TO_STRING(variable));
 }()} {}
 
-constexpr auto var::operator=(const type_c auto variable) -> var&
+constexpr auto var::operator=(type_c auto variable) -> var&
 {
     data = [&variable]() {
         using Type = decltype(variable);
@@ -68,71 +118,176 @@ constexpr auto var::operator=(const type_c auto variable) -> var&
             return data_t(TO_INTEGER(variable));
         else if constexpr (std::is_floating_point_v<Type>)
             return data_t(TO_FLOAT(variable));
-        else if constexpr (is_string_v<Type>) 
+        else if constexpr (th::is_string_v<Type>) 
             return data_t(TO_STRING(variable));
     }();
     return *this;
 }
 
-constexpr auto var::operator+(const type_c auto &operand) -> var
+constexpr auto var::operator+(const type_c auto &operand) const -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return arg + operand; }, this->data);
+    return std::visit([&operand](auto arg) -> data_t { return arg + operand; }, this->data);  // Trash
 }
 
-constexpr auto var::operator-(const type_c auto &operand) -> var
+constexpr auto var::operator-(const type_c<EXCLUDE_STRING> auto &operand) const -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return arg - operand; }, this->data);
+    return  std::visit(
+                overloaded{
+                    [&operand](th::arithmetic auto arg) -> data_t { return arg - operand; },
+                    [&operand](const STRING& arg) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
+                },
+                this->data
+            );
 }
 
-constexpr auto var::operator*(const type_c auto &operand) -> var
+constexpr auto var::operator*(const type_c<EXCLUDE_STRING> auto &operand) const -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return arg * operand; }, this->data);
+    return  std::visit(
+                overloaded{
+                    [&operand](th::arithmetic auto num) -> data_t { return num * operand; },
+                    [&operand](STRING str_copy) -> data_t { return sh::string_multiplication(str_copy, operand); },
+                },
+                this->data
+            );
 }
 
-constexpr auto var::operator/(const type_c auto &operand) -> var
+constexpr auto var::operator/(const type_c<EXCLUDE_STRING> auto &operand) const -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return arg / operand; }, this->data);
+    return  std::visit(
+                overloaded{
+                    [&operand](th::arithmetic auto  arg) -> data_t { return arg / operand; },
+                    [&operand](const STRING& arg) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
+                },
+                this->data
+            );
 }
 
-constexpr auto var::operator%(const type_c auto &operand) -> var
+constexpr auto var::operator%(const type_c<EXCLUDE_STRING> auto &operand) const -> var
 {
-    return std::visit(overloaded{
-                          [&operand](INTEGER arg) -> data_t { return arg % operand; },
-                          [&operand](FLOAT arg) -> data_t { return std::fmod(arg, operand); },
-                          [&operand](BOOL arg) -> data_t { return arg % operand; },
-                      },
-                      this->data);
+    return  std::visit(
+                overloaded{
+                    [&operand](INTEGER arg) -> data_t { return arg % operand; },
+                    [&operand](FLOAT arg) -> data_t { return std::fmod(arg, operand); },
+                    [&operand](BOOL arg) -> data_t { return arg % operand; },
+                    [&operand](const STRING& arg) -> data_t { throw std::invalid_argument{"Cannot use operator% on strings"}; },
+                },
+                this->data
+            );
 }
 
 constexpr auto operator+(const type_c auto &operand, const var &variable) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return operand + arg; }, variable.data);
+    return variable + operand;
 }
 
-constexpr auto operator-(const type_c auto &operand, const var &variable) -> var
+constexpr auto operator-(const type_c<EXCLUDE_STRING> auto &operand, const var &variable) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return operand - arg; }, variable.data);
+    return  std::visit(
+                overloaded{
+                    [&operand](th::arithmetic auto  arg) -> data_t { return operand - arg; },
+                    [&operand](const STRING& arg) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
+                },
+                variable.data
+            );
 }
 
-constexpr auto operator*(const type_c auto &operand, const var &variable) -> var
+constexpr auto operator*(const type_c<EXCLUDE_STRING> auto &operand, const var &variable) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return operand * arg; }, variable.data);
+    return variable * operand;
 }
 
-constexpr auto operator/(const type_c auto &operand, const var &variable) -> var
+constexpr auto operator/(const type_c<EXCLUDE_STRING> auto &operand, const var &variable) -> var
 {
-    return std::visit([&operand](auto arg) -> data_t { return operand / arg; }, variable.data);  //
+    return  std::visit(
+                overloaded{
+                    [&operand](th::arithmetic auto arg) -> data_t { return operand / arg; },
+                    [&operand](const STRING& arg) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
+                },
+                variable.data
+            );
 }
 
-constexpr auto operator%(const type_c auto &operand, const var &variable) -> var
+constexpr auto operator%(const type_c<EXCLUDE_STRING> auto &operand, const var &variable) -> var
 {
-    return std::visit(overloaded{
-                          [&operand](INTEGER arg) -> data_t { return operand % arg; },
-                          [&operand](FLOAT arg) -> data_t { return std::fmod(operand, arg); },
-                          [&operand](BOOL arg) -> data_t { return operand % arg; },
-                      },
-                      variable.data);
+    return  std::visit(
+                overloaded{
+                    [&operand](INTEGER arg) { return operand % arg; },
+                    [&operand](FLOAT arg) { return std::fmod(operand, arg); },
+                    [&operand](BOOL arg) { return operand % arg; },
+                    [&operand](const STRING& arg) { throw std::invalid_argument{"Cannot use operator% on strings"}; },
+                },
+                variable.data
+            );
 }
+
+constexpr auto var::operator+=(const type_c auto & operand) -> var& {
+    std::visit(
+        overloaded{
+            [&](th::arithmetic auto data) {
+                if constexpr (!th::is_string_v<decltype(operand)>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};
+                this->data = data_t(data + operand);
+            },
+            [&](STRING& str) {
+                if constexpr (th::is_string_v<decltype(operand)>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};
+                str += operand; 
+            },
+        },
+        this->data
+    );
+    return *this;
+}
+
+constexpr auto var::operator-=(const type_c<EXCLUDE_STRING> auto & operand) -> var& {
+    std::visit(
+        overloaded{
+            [&](th::arithmetic auto data) {
+                this->data = data_t(data - operand);
+            },
+            [&](STRING data) { 
+                throw std::invalid_argument{"Cannot perform subtraction on strings"};
+            },
+        },
+        this->data
+    );
+    return *this;
+}
+
+
+constexpr auto var::operator*=(const type_c<EXCLUDE_STRING> auto & operand) -> var& {
+    std::visit(
+        overloaded{
+            [&](th::arithmetic auto num) {
+                this->data = data_t(num * operand);
+            },
+            [&](STRING& str) {
+                sh::string_multiplication(str, operand);         
+            },
+        },
+        this->data
+    );
+    return *this;
+}
+
+constexpr auto var::operator/=(const type_c<EXCLUDE_STRING> auto & operand) -> var& {
+    std::visit(
+        overloaded{
+            [&](th::arithmetic auto data) {
+                this->data = data_t(data / operand);
+            },
+            [&](STRING data) { 
+                throw std::invalid_argument{"Cannot use operator/ on strings"};
+            },
+        },
+        this->data
+    );
+    return *this;
+}
+// constexpr auto var::operator%=(const type_c<EXCLUDE_STRING> auto &) -> var&;
+// constexpr friend auto operator+=(const type_c auto & op1, const var &) -> decltype(op1);
+// constexpr friend auto operator-=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
+// constexpr friend auto operator*=(const type_c auto & op1, const var &) -> decltype(op1);
+// constexpr friend auto operator/=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
+// constexpr friend auto operator%=(const type_c<EXCLUDE_STRING> auto & op1, const var &) -> decltype(op1);
 
 
 constexpr std::ostream &operator<<(std::ostream &os, const var &variable)
@@ -141,8 +296,41 @@ constexpr std::ostream &operator<<(std::ostream &os, const var &variable)
     return os;
 }
 
-var::operator data_t() {
+template <th::supported_type T>
+var::operator T() const {
+    if constexpr (std::is_same_v<T, BOOL>) {
+        return  std::visit(
+                    overloaded{
+                        [](th::arithmetic auto arg) { return static_cast<BOOL>(arg); },
+                        [](const STRING& arg) { return static_cast<BOOL>(arg != ""); },
+                    },
+                    this->data
+                );
+    }
+    if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+        return  std::visit(
+                    overloaded{
+                        [](th::arithmetic auto arg) { return static_cast<T>(arg); },
+                        [](const STRING& arg) -> T { throw std::invalid_argument{"Cannot convert strings to numeric type"}; },
+                    },
+                    this->data
+                );
+    }
+    if constexpr (th::is_string_v<T>) {
+        return  std::visit(
+                    overloaded{
+                        [](th::arithmetic auto arg) { throw std::invalid_argument{"Cannot convert numeric type to string"}; },
+                        [](STRING str) -> T { return str; },
+                    },
+                    this->data
+                );
+    }
+}
+
+var::operator data_t() const {
     return data;
 }
+
+}  // namespace DynamicTyping
 
 #endif
