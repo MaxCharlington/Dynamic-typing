@@ -32,6 +32,6 @@ consteval auto assert_impl(auto msg) {
 
 #define dt_assert(condition, msg) assert_impl<condition>(msg)
 
-}  // namespace
+}  // namespace DynamicTyping::CommonHelpers
 
 #endif  // COMMON_HELPERS_H

@@ -12,7 +12,7 @@ namespace DynamicTyping::TypeHelpers {
 namespace th = TypeHelpers;
 namespace ch = CommonHelpers;
 
-using INTEGER   = int64_t;
+using INTEGER   = int64_t; // int128_t?
 using FLOAT     = long double;
 using STRING    = std::string;
 using BOOL      = bool;
@@ -25,7 +25,7 @@ template <typename T> concept arithmetic = std::is_arithmetic_v<T>;
 // String like types
 template <typename T>
 inline constexpr bool is_string_v = std::is_same_v<T, std::string> ||
-                                    std::is_same_v<std::decay_t<ch::remove_const_t<T>>, char *>;
+                                    std::is_same_v<ch::remove_const_t<std::decay_t<T>>, char *>;
 
 template <typename T>
 concept string = is_string_v<T>;
@@ -92,6 +92,6 @@ concept supported_type =  (std::is_arithmetic_v<T> ||
 template <typename Type, DataType Exclude = DataType::NONE>
 concept type_c = supported_type<Type, Exclude>;
 
-}  // namespace
+}  // namespace DynamicTyping::TypeHelpers
 
 #endif  // TYPES_H

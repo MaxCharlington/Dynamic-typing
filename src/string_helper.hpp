@@ -13,12 +13,12 @@ using namespace TypeHelpers;
 
 
 void string_multiplication(STRING& str, std::integral auto times) {
-    if (times >= 0) throw std::invalid_argument{"Cannot multiply string by non positive integral value"};
-    
+    if (times <= 0) throw std::invalid_argument{"Cannot multiply string by non positive integral value"};
+
     STRING orig{str};
     str.clear();
     str.reserve(orig.length() * times);
-    for (size_t i = 0; i < times; i++) str += orig; 
+    for (size_t i = 0; i < times; i++) str += orig;
 }
 
 }  // namespace
