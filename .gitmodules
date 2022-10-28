@@ -1,0 +1,3 @@
+[submodule "deps/CppHelpers"]
+	path = deps/CppHelpers
+	url = https://github.com/MaxCharlington/CppHelpers.git
