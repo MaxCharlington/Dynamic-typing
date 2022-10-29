@@ -1,3 +1,6 @@
+#include "types.hpp"
+#include <template_strings.hpp>
+
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -9,18 +12,7 @@
 #include <type_traits>
 #include <utility>
 
-enum class DataType {
-    NONE,
-    INTEGER,
-    FLOAT,
-    BOOL,
-    STRING
-};
-
-using INTEGER   = int64_t; // int128_t?
-using FLOAT     = long double;
-using STRING    = std::string;
-using BOOL      = bool;
+using namespace DynamicTyping::TypeHelpers;
 
 template<DataType dt>
 consteval auto make_type()
@@ -73,22 +65,25 @@ static consteval bool is_array(std::tuple<T...>) { return false; }
 template<typename ...T>
 static consteval bool is_array(std::tuple<ArrayTag, T...>) { return true; }
 
-
 template<DataType dt>
 consteval auto make_value(auto value)
 {
     return type<dt>{value};
 }
 
-template<DataType dt>
-consteval auto make_field(std::string_view name, auto field_value)
+template<StringLiteral s>
+using FieldNameHash = HashedStr<s>;
+
+template<DataType dt, StringLiteral name>
+consteval auto make_field(auto field_value)
 {
-    return std::make_tuple(FieldTag{}, name, make_value<dt>(field_value));
+    return std::make_tuple(FieldTag{}, FieldNameHash<name>{}, std::string_view{name.value}, make_value<dt>(field_value));
 }
 
-consteval auto make_field(std::string_view name, auto value)
+template<StringLiteral name>
+consteval auto make_field(auto value)
 {
-    return std::make_tuple(FieldTag{}, name, value);
+    return std::make_tuple(FieldTag{}, FieldNameHash<name>{}, std::string_view{name.value}, value);
 }
 
 template<typename ...Fields>
@@ -110,99 +105,29 @@ constexpr auto append(Appendee a, New new_el)
         return std::tuple_cat(a, std::make_tuple(new_el));
 }
 
-/**
- * Literal class type that wraps a constant expression string
- *
- * Uses implicit conversion to allow templates to accept constant strings
- */
-template<std::size_t N>
-struct StringLiteral {
-    constexpr StringLiteral(const char (&str)[N]) noexcept
-    {
-        std::copy_n(str, N, value);
-    }
-
-    constexpr explicit StringLiteral(std::string_view str) noexcept 
-    {
-        if (std::is_constant_evaluated())
-        {
-            if (str.size() + 1 != N) throw "Wrong length template param provided";
-        }
-        std::copy_n(str.data(), N, value);
-    }
-
-    constexpr bool operator==(std::string_view str) const
-    {
-        return str == value;
-    }
-
-    constexpr const char* c_str() const noexcept
-    {
-        return value;
-    }
-
-    char value[N];
-};
-
 template<typename F>
 class Field
 {
 public:
     constexpr Field(F field) : m_field{field} { static_assert(is_field(F{})); }
 
-    constexpr auto name() const noexcept -> std::string_view
+    constexpr size_t name_hash() const noexcept
     {
-        return std::get<1>(m_field);
+        return std::get<1>(F{}).hash();
     }
 
-    constexpr auto value() const noexcept
+    constexpr auto name() const noexcept -> std::string_view
     {
         return std::get<2>(m_field);
     }
 
+    constexpr auto value() const noexcept
+    {
+        return std::get<3>(m_field);
+    }
+
 private:
     F m_field;
-};
-
-template<typename Obj>
-class Object
-{
-public:
-    constexpr Object(Obj object) : m_object{object} { static_assert(is_object(Obj{})); }
-
-    template<typename T, StringLiteral field_name>
-    constexpr auto get() const
-    {
-        auto val = get_impl<T, field_name>(m_object);
-        if (val.has_value())
-        {
-            return *val;
-        }
-    }
-
-private:
-    template<typename T, StringLiteral field_name, size_t I = 1>
-    constexpr static auto get_impl(Obj obj) -> std::optional<T>
-    {
-        if constexpr (I < std::tuple_size_v<Obj>)
-        {
-            auto field = Field{std::get<I>(obj)};
-            if (field_name == field.name())
-            {
-                if constexpr (std::is_same_v<decltype(field.value()), T>)
-                    return field.value();
-                else
-                    return std::nullopt;
-            }
-            else
-            {
-                return get_impl<T, field_name, I + 1>(obj);
-            }
-        }
-        return std::nullopt;
-    }
-
-    const Obj m_object;
 };
 
 template<typename Arr>
@@ -216,6 +141,11 @@ public:
     {
         static_assert(I + 1 < std::tuple_size_v<Arr>);
         return get_impl<I>(m_array);
+    }
+
+    constexpr size_t size() const noexcept
+    {
+        return size_impl();
     }
 
 private:
@@ -232,17 +162,65 @@ private:
         }
     }
 
+    constexpr static size_t size_impl()
+    {
+        return std::tuple_size_v<Arr> - 1 /* -1 for tag */;
+    }
+
     const Arr m_array;
+};
+
+template<typename Obj>
+class Object
+{
+public:
+    constexpr Object(Obj object) : m_object{object} { static_assert(is_object(Obj{})); }
+
+    template<StringLiteral field_name>
+    constexpr auto get() const
+    {
+        return get_impl<field_name>(m_object);
+    }
+
+    constexpr size_t size() const noexcept
+    {
+        return size_impl();
+    }
+
+private:
+    template<StringLiteral field_name, size_t I = 1>
+    constexpr static auto get_impl(Obj obj)
+    {
+        if constexpr (I <= size_impl())
+        {
+            constexpr auto field = Field{std::get<I>(Obj{})};
+            if constexpr (FieldNameHash<field_name>{}.hash() == field.name_hash())
+            {
+                return Field{std::get<I>(obj)}.value();
+            }
+            else
+            {
+                return get_impl<field_name, I + 1>(obj);
+            }
+        }
+    }
+
+    constexpr static size_t size_impl()
+    {
+        return std::tuple_size_v<Obj> - 1 /* -1 for tag */;
+    }
+
+    const Obj m_object;
 };
 
 int main()
 {
     constexpr auto num_val    = make_value<DataType::INTEGER>(10);
 
-    constexpr auto num_field  = make_field("num", num_val);
+    constexpr auto num_field  = make_field<"num">(num_val);
     static_assert(is_field(num_field));
 
-    constexpr auto flag_field = make_field<DataType::BOOL>("flag", false);
+    constexpr auto flag_field = make_field<DataType::BOOL, "flag">(false);
     static_assert(is_field(flag_field));
 
     constexpr auto obj        = make_obj(num_field, flag_field);
@@ -254,16 +232,12 @@ int main()
     constexpr auto a = Array(arr);
     static_assert(a.get<1>() == true);
 
-    constexpr auto arr_field  = make_field("array", arr);
-
-    // std::cout << std::get<1>(arr);
+    constexpr auto arr_field  = make_field<"array">(arr);
 
     constexpr auto obj2 = append(obj, arr_field);
-
-    // std::cout << std::get<1>(std::get<1>(std::get<2>(obj2)));
 
     static_assert(is_object(obj2));
 
     constexpr auto o = Object(obj2);
-    static_assert(o.get<INTEGER, "num">() == 10);
+    static_assert(o.get<"num">() == 10);
 }
