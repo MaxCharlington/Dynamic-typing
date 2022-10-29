@@ -65,7 +65,7 @@ constexpr const char* DataTypeStrRepr(DataType t) {
 }
 
 template <typename T>
-consteval auto type() -> DataType{
+consteval auto data_type() -> DataType{
     if constexpr (std::is_same_v<T, INTEGER>) return DataType::INTEGER;
     else if constexpr (std::is_same_v<T, FLOAT>) return DataType::FLOAT;
     else if constexpr (std::is_same_v<T, BOOL>) return DataType::BOOL;
