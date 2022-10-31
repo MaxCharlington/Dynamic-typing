@@ -15,7 +15,7 @@
 using namespace DynamicTyping::TypeHelpers;
 
 template<DataType dt>
-consteval auto make_type()
+constexpr auto make_type()
 {
     if constexpr (dt == DataType::NONE)
     {
@@ -48,46 +48,43 @@ using ArrayTag = struct{};
 
 
 template<typename ...T>
-static consteval bool is_object(std::tuple<T...>) { return false; }
+static constexpr bool is_object(std::tuple<T...>) { return false; }
 
 template<typename ...T>
-static consteval bool is_object(std::tuple<ObjTag, T...>) { return true; }
+static constexpr bool is_object(std::tuple<ObjTag, T...>) { return true; }
 
 template<typename ...T>
-static consteval bool is_field(std::tuple<T...>) { return false; }
+static constexpr bool is_field(std::tuple<T...>) { return false; }
 
 template<typename ...T>
-static consteval bool is_field(std::tuple<FieldTag, T...>) { return true; }
+static constexpr bool is_field(std::tuple<FieldTag, T...>) { return true; }
 
 template<typename ...T>
-static consteval bool is_array(std::tuple<T...>) { return false; }
+static constexpr bool is_array(std::tuple<T...>) { return false; }
 
 template<typename ...T>
-static consteval bool is_array(std::tuple<ArrayTag, T...>) { return true; }
+static constexpr bool is_array(std::tuple<ArrayTag, T...>) { return true; }
 
 template<DataType dt>
-consteval auto make_value(auto value)
+constexpr auto make_value(auto value)
 {
     return type<dt>{value};
 }
 
-template<StringLiteral s>
-using FieldNameHash = HashedStr<s>;
-
 template<DataType dt, StringLiteral name>
-consteval auto make_field(auto field_value)
+constexpr auto make_field(auto field_value)
 {
-    return std::make_tuple(FieldTag{}, FieldNameHash<name>{}, std::string_view{name.value}, make_value<dt>(field_value));
+    return std::make_tuple(FieldTag{}, String<name>{}, make_value<dt>(field_value));
 }
 
 template<StringLiteral name>
-consteval auto make_field(auto value)
+constexpr auto make_field(auto value)
 {
-    return std::make_tuple(FieldTag{}, FieldNameHash<name>{}, std::string_view{name.value}, value);
+    return std::make_tuple(FieldTag{}, String<name>{}, value);
 }
 
 template<typename ...Fields>
-consteval auto make_obj(Fields ...fs)
+constexpr auto make_obj(Fields ...fs)
 {
     return std::make_tuple(ObjTag{}, fs...);
 }
@@ -111,19 +108,14 @@ class Field
 public:
     constexpr Field(F field) : m_field{field} { static_assert(is_field(F{})); }
 
-    constexpr size_t name_hash() const noexcept
-    {
-        return std::get<1>(F{}).hash();
-    }
-
     constexpr auto name() const noexcept -> std::string_view
     {
-        return std::get<2>(m_field);
+        return std::get<1>(m_field);
     }
 
     constexpr auto value() const noexcept
     {
-        return std::get<3>(m_field);
+        return std::get<2>(m_field);
     }
 
 private:
@@ -194,7 +186,7 @@ private:
         if constexpr (I <= size_impl())
         {
             constexpr auto field = Field{std::get<I>(Obj{})};
-            if constexpr (FieldNameHash<field_name>{}.hash() == field.name_hash())
+            if constexpr (field_name == field.name())
             {
                 return Field{std::get<I>(obj)}.value();
             }
