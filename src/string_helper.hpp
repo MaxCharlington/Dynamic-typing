@@ -17,7 +17,7 @@ constexpr void string_multiplication(STRING& str, std::integral auto times) {
     STRING orig{str};
     str.clear();
     str.reserve(orig.length() * times);
-    for (size_t i = 0; i < times; i++) str += orig;
+    for (std::size_t i = 0; i < static_cast<std::size_t>(times); i++) str += orig;
 }
 
 constexpr STRING to_string(th::arithmetic auto num) {
