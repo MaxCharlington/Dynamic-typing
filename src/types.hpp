@@ -2,7 +2,7 @@
 #define TYPES_H
 
 #include <cstdint>
-#include <string>
+#include <cest/string.hpp>
 #include <variant>
 
 #include "common_helpers.hpp"
@@ -14,7 +14,7 @@ namespace ch = CommonHelpers;
 
 using INTEGER   = int64_t; // int128_t?
 using FLOAT     = long double;
-using STRING    = std::string;
+using STRING    = cest::string;
 using BOOL      = bool;
 using data_t    = std::variant<INTEGER, FLOAT, BOOL, STRING>;
 
@@ -24,7 +24,7 @@ template <typename T> concept arithmetic = std::is_arithmetic_v<T>;
 
 // String like types
 template <typename T>
-inline constexpr bool is_string_v = std::is_same_v<T, std::string> ||
+inline constexpr bool is_string_v = std::is_same_v<T, cest::string> ||
                                     std::is_same_v<ch::remove_const_t<std::decay_t<T>>, char *>;
 
 template <typename T>
@@ -41,7 +41,7 @@ constexpr FLOAT TO_FLOAT(std::floating_point auto var) {
 }
 
 constexpr STRING TO_STRING(th::string auto var) {
-    return static_cast<STRING>(var);
+    return var;
 }
 
 // Exclusion mechanism
