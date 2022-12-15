@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cassert>
 
-#include "dynamic_typing.hpp"
+#include <dynamic_typing.hpp>
 
 consteval auto test()
 {
