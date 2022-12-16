@@ -8,13 +8,13 @@ int main()
     constexpr auto num_val    = make_value<DataType::INTEGER>(10);
 
     constexpr auto num_field  = make_field<"num">(num_val);
-    static_assert(is_field_data(num_field));
+    static_assert(is_field_data_v(num_field));
 
     constexpr auto flag_field = make_field<DataType::BOOL, "flag">(false);
-    static_assert(is_field_data(flag_field));
+    static_assert(is_field_data_v(flag_field));
 
     constexpr auto obj        = make_obj(num_field, flag_field);
-    static_assert(is_object_data(obj));
+    static_assert(is_object_data_v(obj));
     // std::cout << std::get<1>(std::get<0>(obj)) << '\n';
 
     constexpr auto some_bool  = make_value<DataType::BOOL>(true);
@@ -27,7 +27,7 @@ int main()
     constexpr auto obj2       = append(obj, arr_field);
     make_obj();
 
-    static_assert(is_object_data(obj2));
+    static_assert(is_object_data_v(obj2));
 
     constexpr auto o = Object(obj2);
     static_assert(o.get<"num">() == 10);

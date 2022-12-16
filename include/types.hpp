@@ -4,173 +4,64 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <tuple>
 #include <type_traits>
-#include <utility>
-#include <variant>
 
 #include <template_strings.hpp>
-#include <cest/string.hpp>
 
-#include "common_helpers.hpp"
+#include "primitive_types.hpp"
+
 
 namespace DynamicTyping::Types {
 
 namespace th = Types;
-namespace ch = CommonHelpers;
 
 
-using integer_t   = int64_t; // int128_t?
-using float_t     = long double;
-using string_t    = cest::string;
-using bool_t      = bool;
+template<typename>
+struct is_tuple: std::false_type {};
 
-using data_t    = std::variant<integer_t, float_t, bool_t, string_t>;
+template<typename ...T>
+struct is_tuple<std::tuple<T...>>: std::true_type {};
 
+template<typename T>
+constexpr bool is_tuple_v = is_tuple<T>::value;
 
-// Arithmetic concept
-template <typename T> concept CArithmetic = std::is_arithmetic_v<T>;
+template<typename T>
+concept CIsTuple = is_tuple_v<T>;
 
-// String like types
-template <typename T>
-inline constexpr bool is_string_v = std::is_same_v<T, string_t> ||
-                                    std::is_same_v<ch::remove_const_t<std::decay_t<T>>, char *>;
-
-template <typename T>
-concept CString = is_string_v<T>;
-
-
-// Conversions
-constexpr integer_t TO_INTEGER(std::integral auto var) {
-    return static_cast<integer_t>(var);
-}
-
-constexpr float_t TO_FLOAT(std::floating_point auto var) {
-    return static_cast<float_t>(var);
-}
-
-constexpr string_t TO_STRING(CString auto var) {
-    return var;
-}
-
-// Exclusion mechanism
-enum class DataType {
-    NONE,
-    NILL,
-    UNDEFINED,
-    INTEGER,
-    FLOAT,
-    BOOL,
-    STRING,
-    ARRAY,
-    OBJECT,
-    NATIVE
-};
-
-constexpr const char* DataTypeStrRepr(DataType t) {
-    switch (t) {
-        case DataType::NONE: return "NONE";
-        case DataType::NILL: return "NILL";
-        case DataType::UNDEFINED: return "UNDEFINED";
-        case DataType::INTEGER: return "INTEGER";
-        case DataType::FLOAT: return "FLOAT";
-        case DataType::BOOL: return "BOOL";
-        case DataType::STRING: return "STRING";
-        default: return nullptr;
-    }
-}
-
-template <typename T>
-consteval auto data_type() -> DataType {
-    if constexpr (std::is_same_v<T, integer_t>) return DataType::INTEGER;
-    else if constexpr (std::is_same_v<T, float_t>) return DataType::FLOAT;
-    else if constexpr (std::is_same_v<T, bool_t>) return DataType::BOOL;
-    else if constexpr (std::is_same_v<T, string_t>) return DataType::STRING;
-    else return DataType::NONE;
-}
-
-template <typename T, DataType Exclude>
-consteval bool IsExcluded() {
-    if constexpr (std::is_same_v<T, bool> && (Exclude == DataType::BOOL)) return true;
-    if constexpr (std::is_integral_v<T> && (Exclude == DataType::INTEGER)) return true;
-    if constexpr (std::is_floating_point_v<T> && (Exclude == DataType::FLOAT)) return true;
-    if constexpr (is_string_v<T> && (Exclude == DataType::STRING)) return true;
-    else return false;
-}
-
-
-template <typename T, DataType Exclude = DataType::NONE>
-concept CSupportedType =  (CArithmetic<T> ||
-                           CString<T>) &&
-                           !IsExcluded<T, Exclude>();
-
-template <typename Type, DataType Exclude = DataType::NONE>
-concept CType = CSupportedType<Type, Exclude>;
-
-template<DataType dt>
-constexpr auto make_type()
-{
-    using enum DataType;
-    if constexpr (dt == NONE or dt == NILL or dt == UNDEFINED)
-        return;
-    else if constexpr (dt == INTEGER)
-        return integer_t{};
-    else if constexpr (dt == FLOAT)
-        return float_t{};
-    else if constexpr (dt == BOOL)
-        return bool_t{};
-    else if constexpr (dt == STRING)
-        return string_t{};
-}
-
-template<DataType dt>
-using type = decltype(make_type<dt>());
-
-// template<typename T>
-// constexpr auto make_type()
-// {
-//     if constexpr (std::is_same_v<T, bool>) return bool_t{};
-//     if constexpr (std::is_integral_v<T>) return integer_t{};
-//     if constexpr (std::is_floating_point_v<T>) return float_t{};
-//     if constexpr (is_string_v<T>) return string_t{};
-//     else return;
-// }
-
-// template<typename T>
-// using type = decltype(make_type<T>());
 
 using ObjTag = struct{};
 using FieldTag = struct{};
 using ArrayTag = struct{};
 
-static constexpr bool is_object_data(auto) { return false; }
+static constexpr bool is_object_data_v(auto) { return false; }
 
 template<typename ...T>
-static constexpr bool is_object_data(std::tuple<ObjTag, T...>) { return true; }
+static constexpr bool is_object_data_v(std::tuple<ObjTag, T...>) { return true; }
 
 template<typename T>
-concept CObjectData = is_object_data(T{});
+concept CObjectData = is_object_data_v(T{});
 
 
-static constexpr bool is_field_data(auto) { return false; }
+static constexpr bool is_field_data_v(auto) { return false; }
 
 template<typename ...T>
-static constexpr bool is_field_data(std::tuple<FieldTag, T...>) { return true; }
+static constexpr bool is_field_data_v(std::tuple<FieldTag, T...>) { return true; }
 
 template<typename T>
-concept CFieldData = is_field_data(T{});
+concept CFieldData = is_field_data_v(T{});
 
 
-static constexpr bool is_array_data(auto) { return false; }
+static constexpr bool is_array_data_v(auto) { return false; }
 
 template<typename ...T>
-static constexpr bool is_array_data(std::tuple<ArrayTag, T...>) { return true; }
+static constexpr bool is_array_data_v(std::tuple<ArrayTag, T...>) { return true; }
 
 template<typename T>
-concept CArrayData = is_array_data(T{});
+concept CArrayData = is_array_data_v(T{});
+
 
 template<DataType dt>
 constexpr auto make_value(auto value)
@@ -210,6 +101,7 @@ constexpr auto append(Appendee a, New new_el)
         return std::tuple_cat(a, std::make_tuple(new_el));
 }
 
+
 template<CFieldData F>
 class Field
 {
@@ -229,6 +121,7 @@ public:
 private:
     F m_field;
 };
+
 
 template<CArrayData Arr>
 class Array
@@ -269,6 +162,7 @@ private:
 
     const Arr m_array;
 };
+
 
 template<CObjectData Obj>
 class Object
@@ -353,14 +247,44 @@ private:
     const Obj m_object;
 };
 
-// template<typename T, typename FieldData>
-// concept CField = std::is_same_v<T, Field<FieldData>> and CFieldData<FieldData>;
+template<typename>
+struct is_field: std::false_type {};
 
-// template<typename T, typename ArrayData>
-// concept CArray = std::is_same_v<T, Array<ArrayData>> and CArrayData<ArrayData>;
+template<CFieldData T>
+struct is_field<Field<T>>: std::true_type {};
 
-// template<typename T, typename ObjData>
-// concept CObject = std::is_same_v<T, Object<ObjData>> and CObjectData<ObjData>;
+template<typename T>
+constexpr bool is_field_v = is_field<T>::value;
+
+template<typename T>
+concept CField = is_field_v<T>;
+
+
+template<typename>
+struct is_array: std::false_type {};
+
+template<CArrayData T>
+struct is_array<Array<T>>: std::true_type {};
+
+template<typename T>
+constexpr bool is_array_v = is_array<T>::value;
+
+template<typename T>
+concept CArray = is_array_v<T>;
+
+
+template<typename>
+struct is_object: std::false_type {};
+
+template<CObjectData T>
+struct is_object<Object<T>>: std::true_type {};
+
+template<typename T>
+constexpr bool is_object_v = is_object<T>::value;
+
+template<typename T>
+concept CObject = is_object_v<T>;
+
 
 }  // namespace DynamicTyping::Types
 

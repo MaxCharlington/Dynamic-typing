@@ -14,8 +14,7 @@ struct S
     constexpr S() = default;
     constexpr S(const std::string& s, int n) : str{s}, num{n} {}
 
-    template <CObjectData T>
-    constexpr S(Object<T> data)
+    constexpr S(CObject auto data)  // no length for str as it was trimmed
         : str{data.template get<"str">().data()}
         , num{data.template get<"num">()}
     {}
@@ -33,6 +32,7 @@ struct S
         std::copy_n(str.begin(), size, tmp_str.data());
         auto str_field  = make_field<DataType::NATIVE, "str">(tmp_str);
 
+        // after array add length field
         auto strlen_field  = make_field<DataType::NATIVE, "strlen">(size);
 
         return make_obj(num_field, str_field, strlen_field);

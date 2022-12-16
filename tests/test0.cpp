@@ -1,12 +1,13 @@
 #include <iostream>
 #include <cassert>
 
+#include <cest/string.hpp>
 #include <dynamic_typing.hpp>
 
-consteval auto test()
-{
-    using namespace DynamicTyping;
+using namespace DynamicTyping;
 
+consteval auto test0()
+{
     // Integer
     var integer = 1;
     integer = 2ll;
@@ -54,8 +55,18 @@ consteval auto test()
     return floating;
 }
 
+constexpr auto test1()
+{
+    var string = "asdasdasd";
+
+    return string;
+}
+
 int main()
 {
-    constexpr auto variable = test();
-    std::cout << variable << '\n';
+    constexpr auto variable0 = test0();
+    std::cout << variable0 << '\n';
+
+    var variable1 = ctr::to_runtime<test1>();
+    std::cout << variable1 << '\n';
 }

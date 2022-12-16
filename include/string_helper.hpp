@@ -1,11 +1,12 @@
 #ifndef STRING_HELPER_H
 #define STRING_HELPER_H
 
+#include <cstdint>
 #include <charconv>
+#include <concepts>
 #include <type_traits>
 
 #include "types.hpp"
-#include "common_helpers.hpp"
 
 namespace DynamicTyping::StringHelpers {
 
