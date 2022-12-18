@@ -113,6 +113,11 @@ public:
         return std::get<1>(m_field);
     }
 
+    constexpr auto& value() noexcept
+    {
+        return std::get<2>(m_field);
+    }
+
     constexpr auto value() const noexcept
     {
         return std::get<2>(m_field);
@@ -130,10 +135,17 @@ public:
     constexpr Array(Arr array) : m_array{array} {}
 
     template<size_t I>
-    constexpr auto get() const
+    constexpr auto& get() noexcept
     {
         static_assert(I + 1 < std::tuple_size_v<Arr>);
-        return get_impl<I>(m_array);
+        return get_impl<I>();
+    }
+
+    template<size_t I>
+    constexpr auto get() const noexcept
+    {
+        static_assert(I + 1 < std::tuple_size_v<Arr>);
+        return get_impl<I>();
     }
 
     constexpr size_t size() const noexcept
@@ -143,15 +155,28 @@ public:
 
 private:
     template<size_t Index, size_t I = 1>
-    constexpr static auto get_impl(Arr arr)
+    constexpr auto& get_impl() noexcept
     {
         if constexpr (I == Index + 1)
         {
-            return std::get<I>(arr);
+            return std::get<I>(m_array);
         }
         else
         {
-            return get_impl<Index, I + 1>(arr);
+            return get_impl<Index, I + 1>();
+        }
+    }
+
+    template<size_t Index, size_t I = 1>
+    constexpr auto get_impl() const noexcept
+    {
+        if constexpr (I == Index + 1)
+        {
+            return std::get<I>(m_array);
+        }
+        else
+        {
+            return get_impl<Index, I + 1>();
         }
     }
 
@@ -160,7 +185,7 @@ private:
         return std::tuple_size_v<Arr> - 1 /* -1 for tag */;
     }
 
-    const Arr m_array;
+    Arr m_array;
 };
 
 
@@ -171,23 +196,43 @@ public:
     constexpr Object(Obj object) : m_object{object} {}
 
     template<StringLiteral field_name>
-    constexpr auto get() const
+    constexpr auto& get() noexcept
     {
-        return get_impl<field_name>(m_object);
+        return get_impl<field_name>();
+    }
+
+    template<StringLiteral field_name>
+    constexpr auto get() const noexcept
+    {
+        return get_impl<field_name>();
     }
 
     template<size_t I>
-    constexpr auto get() const
+    constexpr auto& get() noexcept
     {
         static_assert(I + 1 < std::tuple_size_v<Obj>);
-        return get_impl<I>(m_object);
+        return get_impl<I>();
     }
 
     template<size_t I>
-    constexpr auto get_field() const
+    constexpr auto get() const noexcept
     {
         static_assert(I + 1 < std::tuple_size_v<Obj>);
-        return get_field_impl<I>(m_object);
+        return get_impl<I>();
+    }
+
+    template<size_t I>
+    constexpr auto& get_field() noexcept
+    {
+        static_assert(I + 1 < std::tuple_size_v<Obj>);
+        return get_field_impl<I>();
+    }
+
+    template<size_t I>
+    constexpr auto get_field() const noexcept
+    {
+        static_assert(I + 1 < std::tuple_size_v<Obj>);
+        return get_field_impl<I>();
     }
 
     constexpr size_t size() const noexcept
@@ -197,45 +242,88 @@ public:
 
 private:
     template<StringLiteral field_name, size_t I = 1>
-    constexpr static auto get_impl(Obj obj)
+    constexpr auto& get_impl() noexcept
     {
         if constexpr (I <= size_impl())
         {
             constexpr auto field = Field{std::get<I>(Obj{})};
             if constexpr (field_name == field.name())
             {
-                return Field{std::get<I>(obj)}.value();
+                return Field{std::get<I>(m_object)}.value();
             }
             else
             {
-                return get_impl<field_name, I + 1>(obj);
+                return get_impl<field_name, I + 1>();
+            }
+        }
+    }
+
+    template<StringLiteral field_name, size_t I = 1>
+    constexpr auto get_impl() const noexcept
+    {
+        if constexpr (I <= size_impl())
+        {
+            constexpr auto field = Field{std::get<I>(Obj{})};
+            if constexpr (field_name == field.name())
+            {
+                return Field{std::get<I>(m_object)}.value();
+            }
+            else
+            {
+                return get_impl<field_name, I + 1>();
             }
         }
     }
 
     template<size_t Index, size_t I = 1>
-    constexpr static auto get_impl(Obj obj)
+    constexpr auto& get_impl() noexcept
     {
         if constexpr (I == Index + 1)
         {
-            return Field{std::get<I>(obj)}.value();
+            return Field{std::get<I>(m_object)}.value();
         }
         else
         {
-            return get_impl<Index, I + 1>(obj);
+            return get_impl<Index, I + 1>();
         }
     }
 
     template<size_t Index, size_t I = 1>
-    constexpr static auto get_field_impl(Obj obj)
+    constexpr auto get_impl() const noexcept
     {
         if constexpr (I == Index + 1)
         {
-            return std::get<I>(obj);
+            return Field{std::get<I>(m_object)}.value();
         }
         else
         {
-            return get_field_impl<Index, I + 1>(obj);
+            return get_impl<Index, I + 1>();
+        }
+    }
+
+    template<size_t Index, size_t I = 1>
+    constexpr auto& get_field_impl() noexcept
+    {
+        if constexpr (I == Index + 1)
+        {
+            return std::get<I>(m_object);
+        }
+        else
+        {
+            return get_field_impl<Index, I + 1>();
+        }
+    }
+
+    template<size_t Index, size_t I = 1>
+    constexpr auto get_field_impl() const noexcept
+    {
+        if constexpr (I == Index + 1)
+        {
+            return std::get<I>(m_object);
+        }
+        else
+        {
+            return get_field_impl<Index, I + 1>();
         }
     }
 
@@ -244,7 +332,7 @@ private:
         return std::tuple_size_v<Obj> - 1 /* -1 for tag */;
     }
 
-    const Obj m_object;
+    Obj m_object;
 };
 
 template<typename>
