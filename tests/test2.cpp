@@ -7,6 +7,8 @@
 #include <constexpr_to_runtime_helper.hpp>
 
 using namespace DynamicTyping::Types;
+using namespace DynamicTyping::Types::Blob;
+
 namespace ctr = DynamicTyping::CTRHelper;
 
 struct S
@@ -48,7 +50,7 @@ constexpr auto f()
 
 int main()
 {
-    constexpr auto d = ctr::to_runtime<f>();
+    auto d = ctr::to_runtime<f>();
     std::cout << sizeof(d) << '\n';
     S s = d;
     puts(s.str.data());

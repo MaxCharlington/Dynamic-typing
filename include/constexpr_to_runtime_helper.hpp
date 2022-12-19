@@ -2,11 +2,12 @@
 
 #include <array>
 
-#include <types.hpp>
+#include "blob_types.hpp"
 
+/// @brief Library to transfer any type from compiletime to runtime using blobs of data
 namespace DynamicTyping::CTRHelper {
 
-using namespace Types;
+using namespace Types::Blob;
 
 template<typename Arr>
 concept CStdArray = requires(Arr arr) {
@@ -19,7 +20,7 @@ concept CStdArray = requires(Arr arr) {
 /// @param obj current object representation tuple
 /// @return Trimmed tuple representing compiletime object
 template<std::invocable auto F, std::size_t Index = 0> requires requires{ {F().to_runtime()} -> CObjectData;}
-constexpr auto to_runtime_transform(CObjectData auto obj)
+auto to_runtime_transform(CObjectData auto obj)
 {
     constexpr auto data = Object(F().to_runtime());
     if constexpr (Index < data.size())
@@ -35,7 +36,7 @@ constexpr auto to_runtime_transform(CObjectData auto obj)
             std::array<typename field_type::value_type, array_size> tmp_arr;
             std::copy_n(std::begin(field_val), array_size, tmp_arr.data());
             constexpr auto field_name = Field{field}.name().get();
-            auto arr_field  = make_field<DataType::NATIVE, field_name>(tmp_arr);
+            auto arr_field  = make_field<Types::DataType::NATIVE, field_name>(tmp_arr);
 
             return to_runtime_transform<F, Index + 2>(append(obj, arr_field));
         }
@@ -56,7 +57,7 @@ constexpr auto to_runtime_transform(CObjectData auto obj)
 /// @return tuple representing compiletime object with trimmed data, from which you
 ///         can create runtime object
 template<std::invocable auto F> requires requires{ {F().to_runtime()} -> CObjectData;}
-constexpr auto to_runtime()
+auto to_runtime()
 {
     return to_runtime_transform<F>(make_obj());
 }

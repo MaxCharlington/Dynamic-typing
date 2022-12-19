@@ -2,11 +2,8 @@
 #define PRIM_TYPES_H
 
 #include <cstdint>
-#include <functional>
-#include <tuple>
 #include <type_traits>
 
-#include <template_strings.hpp>
 #include <cest/string.hpp>
 
 #include "remove_all_const.hpp"
@@ -45,9 +42,7 @@ constexpr string_t TO_STRING(CString auto var) {
     return var;
 }
 
-// Exclusion mechanism
 enum class DataType {
-    NONE,
     NILL,
     UNDEFINED,
     INTEGER,
@@ -56,12 +51,12 @@ enum class DataType {
     STRING,
     ARRAY,
     OBJECT,
+    FUNCTION,
     NATIVE
 };
 
-constexpr const char* DataTypeStrRepr(DataType t) {
+[[deprecated]] constexpr const char* DataTypeStrRepr(DataType t) {
     switch (t) {
-        case DataType::NONE: return "NONE";
         case DataType::NILL: return "NILL";
         case DataType::UNDEFINED: return "UNDEFINED";
         case DataType::INTEGER: return "INTEGER";
@@ -71,65 +66,6 @@ constexpr const char* DataTypeStrRepr(DataType t) {
         default: return nullptr;
     }
 }
-
-template <typename T>
-consteval auto data_type() -> DataType {
-    if constexpr (std::is_same_v<T, integer_t>) return DataType::INTEGER;
-    else if constexpr (std::is_same_v<T, float_t>) return DataType::FLOAT;
-    else if constexpr (std::is_same_v<T, bool_t>) return DataType::BOOL;
-    else if constexpr (std::is_same_v<T, string_t>) return DataType::STRING;
-    else return DataType::NONE;
-}
-
-template <typename T, DataType Exclude>
-consteval bool IsExcluded() {
-    if constexpr (std::is_same_v<T, bool> && (Exclude == DataType::BOOL)) return true;
-    if constexpr (std::is_integral_v<T> && (Exclude == DataType::INTEGER)) return true;
-    if constexpr (std::is_floating_point_v<T> && (Exclude == DataType::FLOAT)) return true;
-    if constexpr (is_string_v<T> && (Exclude == DataType::STRING)) return true;
-    else return false;
-}
-
-
-template <typename T, DataType Exclude = DataType::NONE>
-concept CSupportedType =  (CArithmetic<T> ||
-                           CString<T>) &&
-                           !IsExcluded<T, Exclude>();
-
-template <typename Type, DataType Exclude = DataType::NONE>
-concept CType = CSupportedType<Type, Exclude>;
-
-template<DataType dt>
-constexpr auto make_type()
-{
-    using enum DataType;
-    if constexpr (dt == NONE or dt == NILL or dt == UNDEFINED)
-        return;
-    else if constexpr (dt == INTEGER)
-        return integer_t{};
-    else if constexpr (dt == FLOAT)
-        return float_t{};
-    else if constexpr (dt == BOOL)
-        return bool_t{};
-    else if constexpr (dt == STRING)
-        return string_t{};
-}
-
-template<DataType dt>
-using type = decltype(make_type<dt>());
-
-// template<typename T>
-// constexpr auto make_type()
-// {
-//     if constexpr (std::is_same_v<T, bool>) return bool_t{};
-//     if constexpr (std::is_integral_v<T>) return integer_t{};
-//     if constexpr (std::is_floating_point_v<T>) return float_t{};
-//     if constexpr (is_string_v<T>) return string_t{};
-//     else return;
-// }
-
-// template<typename T>
-// using type = decltype(make_type<T>());
 
 }  // namespace DynamicTyping::Types
 

@@ -1,7 +1,9 @@
 #include <template_strings.hpp>
 #include <types.hpp>
+#include <blob_types.hpp>
 
 using namespace DynamicTyping::Types;
+using namespace DynamicTyping::Types::Blob;
 
 int main()
 {

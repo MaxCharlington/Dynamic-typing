@@ -1,5 +1,6 @@
-#include <iostream>
 #include <cassert>
+#include <iostream>
+#include <vector>
 
 #include <cest/string.hpp>
 #include <dynamic_typing.hpp>
@@ -37,20 +38,22 @@ consteval auto test0()
     //String
     cest::string a = "str";
     var string = a;
-    // var string2 = std::string("str").data();
     var string3 = "sadasd";
-    // string *= 10;
-    // string += "helllp";
-    // if (string) {}
+    string *= 10;
+    string += "helllp";
+    if (string) {}
+
+    // Array
+    var arr = data_t{array_t{string, string3}};
 
 
     // Dinamicnesssss
     var variable;
     variable = 1;
     variable = "string";
-    // variable = string;
-    // variable = boolean;
-    // variable = floating;
+    variable = string;
+    variable = boolean;
+    variable = floating;
 
     return floating;
 }
@@ -62,6 +65,14 @@ constexpr auto test1()
     return string;
 }
 
+auto test2()
+{
+    var arr = data_t{array_t{1, "test2"}};
+    std::cout << arr << '\n';
+}
+
+namespace ctr = DynamicTyping::CTRHelper;
+
 int main()
 {
     constexpr auto variable0 = test0();
@@ -69,4 +80,5 @@ int main()
 
     var variable1 = ctr::to_runtime<test1>();
     std::cout << variable1 << '\n';
+    test2();
 }
