@@ -44,7 +44,7 @@ consteval auto test0()
     if (string) {}
 
     // Array
-    var arr = data_t{array_t{string, string3}};
+    var arr = array_t{string, string3};
 
 
     // Dinamicnesssss
@@ -67,7 +67,7 @@ constexpr auto test1()
 
 auto test2()
 {
-    var arr = data_t{array_t{1, "test2"}};
+    var arr = array_t{1, "test2"};
     std::cout << arr << '\n';
 }
 
@@ -81,4 +81,8 @@ int main()
     var variable1 = ctr::to_runtime<test1>();
     std::cout << variable1 << '\n';
     test2();
+
+    // Func
+    var f = [](array_t) -> var { return {}; };
+    var ret = f();
 }

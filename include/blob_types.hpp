@@ -6,7 +6,7 @@
 
 #include <template_strings.hpp>
 
-#include "types.hpp"
+#include <types.hpp>
 
 /// @brief Types for serialization of real types to blobs of data
 namespace DynamicTyping::Types::Blob {

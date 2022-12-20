@@ -18,3 +18,15 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (BUILD_TESTS EQUAL 1)
 add_subdirectory(tests)
 endif()
+
+set(CPP_HELPERS_HEADERS_PATH "${CMAKE_CURRENT_SOURCE_DIR}/deps/CppHelpers/")
+set(CPP_HELPERS_HEADERS
+    ${CPP_HELPERS_HEADERS_PATH}/overloaded.hpp
+    ${CPP_HELPERS_HEADERS_PATH}/remove_all_const.hpp
+    ${CPP_HELPERS_HEADERS_PATH}/template_strings.hpp)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
+        DESTINATION ${CMAKE_INSTALL_PREFIX})
+
+install(FILES ${CPP_HELPERS_HEADERS}
+        TYPE INCLUDE)

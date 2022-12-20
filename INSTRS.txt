@@ -1,0 +1,10 @@
+Deps: gcc>=12, node>=16, cmake, cest, json2cpp
+
+cest:
+https://github.com/pkeir/cest
+
+json2cpp:
+https://github.com/lefticus/json2cpp
+
+cmake .. -DENABLE_TESTING=OFF -DENABLE_FUZZING=OFF -DENABLE_LARGE_TESTS=OFF -DUSER_CXX_STANDARD=20
+sudo make install -j

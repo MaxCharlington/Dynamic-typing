@@ -6,7 +6,7 @@
 
 #include <cest/string.hpp>
 
-#include "remove_all_const.hpp"
+#include <remove_all_const.hpp>
 
 namespace DynamicTyping::Types {
 
@@ -22,7 +22,7 @@ template <typename T> concept CArithmetic = std::is_arithmetic_v<T>;
 
 // String like types
 template <typename T>
-inline constexpr bool is_string_v = std::is_same_v<T, string_t> ||
+inline constexpr bool is_string_v = std::is_same_v<std::remove_cvref_t<T>, string_t> ||
                                     std::is_same_v<remove_all_const_t<std::decay_t<T>>, char *>;
 
 template <typename T>
@@ -38,33 +38,8 @@ constexpr float_t TO_FLOAT(std::floating_point auto var) {
     return static_cast<float_t>(var);
 }
 
-constexpr string_t TO_STRING(CString auto var) {
-    return var;
-}
-
-enum class DataType {
-    NILL,
-    UNDEFINED,
-    INTEGER,
-    FLOAT,
-    BOOL,
-    STRING,
-    ARRAY,
-    OBJECT,
-    FUNCTION,
-    NATIVE
-};
-
-[[deprecated]] constexpr const char* DataTypeStrRepr(DataType t) {
-    switch (t) {
-        case DataType::NILL: return "NILL";
-        case DataType::UNDEFINED: return "UNDEFINED";
-        case DataType::INTEGER: return "INTEGER";
-        case DataType::FLOAT: return "FLOAT";
-        case DataType::BOOL: return "BOOL";
-        case DataType::STRING: return "STRING";
-        default: return nullptr;
-    }
+constexpr string_t TO_STRING(CString auto&& var) {
+    return std::forward<decltype(var)>(var);
 }
 
 }  // namespace DynamicTyping::Types

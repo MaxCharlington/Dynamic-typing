@@ -2,7 +2,7 @@
 
 #include <array>
 
-#include "blob_types.hpp"
+#include <blob_types.hpp>
 
 /// @brief Library to transfer any type from compiletime to runtime using blobs of data
 namespace DynamicTyping::CTRHelper {

@@ -1,2 +1,0 @@
-add support for structs
-WRITE TESTS

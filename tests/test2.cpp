@@ -17,7 +17,10 @@ struct S
     constexpr S(const std::string& s, int n) : str{s}, num{n} {}
 
     constexpr S(CObject auto data)  // no length for str as it was trimmed
-        : str{data.template get<"str">().data()}
+        : str{[&]() -> std::string {
+              auto s = data.template get<"str">();
+              return {s.begin(), s.end()};
+          }()}
         , num{data.template get<"num">()}
     {}
 
