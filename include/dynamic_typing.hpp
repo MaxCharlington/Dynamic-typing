@@ -22,12 +22,13 @@ namespace sh = StringHelpers;
 using namespace Types;
 
 using data_t = std::variant<
-    integer_t
+    null_t
+    , integer_t
     , float_t
     , bool_t
     , string_t
     , array_t
-    // , object_t
+    , object_t
     , function_t
 >;
 
@@ -47,28 +48,23 @@ public:
     constexpr var(Blob::CObject auto);
 
     // Arithmetic
-    constexpr auto operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto&) const -> var;
-    constexpr auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) const -> var;
-    constexpr auto operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) const -> var;
-    constexpr auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) const -> var;
-    constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) const -> var;
+    constexpr auto operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) const -> var;
+    constexpr auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) const -> var;
+    constexpr auto operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) const -> var;
+    constexpr auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) const -> var;
+    constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) const -> var;
     constexpr friend auto operator+(const CType auto&, const var&) -> var;
-    constexpr friend auto operator-(const CType<EXCL_STRING, EXCL_FUNCTION> auto&, const var&) -> var;
+    constexpr friend auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&, const var&) -> var;
     constexpr friend auto operator*(const CType auto&, const var&) -> var;
-    constexpr friend auto operator/(const CType<EXCL_STRING, EXCL_FUNCTION> auto&, const var&) -> var;
-    constexpr friend auto operator%(const CType<EXCL_STRING, EXCL_FUNCTION> auto&, const var&) -> var;
+    constexpr friend auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&, const var&) -> var;
+    constexpr friend auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&, const var&) -> var;
 
     // Assignment arithmetic (maths) (non copy/move)
-    constexpr auto operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto&) -> var&;
-    constexpr auto operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) -> var&;
-    constexpr auto operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) -> var&;
-    constexpr auto operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) -> var&;
-    constexpr auto operator%=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto&) -> var&;
-    constexpr friend auto operator+=(const CType auto& op1, const var&) -> decltype(op1);
-    constexpr friend auto operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& op1, const var&) -> decltype(op1);
-    constexpr friend auto operator*=(const CType auto& op1, const var&) -> decltype(op1);
-    constexpr friend auto operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& op1, const var&) -> decltype(op1);
-    constexpr friend auto operator%=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& op1, const var&) -> decltype(op1);
+    constexpr auto operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) -> var&;
+    constexpr auto operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) -> var&;
+    constexpr auto operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) -> var&;
+    constexpr auto operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) -> var&;
+    constexpr auto operator%=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto&) -> var&;
 
     constexpr std::strong_ordering operator<=>(const var&) const;
 
@@ -79,6 +75,8 @@ public:
     constexpr operator T() const;
 
     constexpr auto operator()(const array_t& args = {}) -> var;
+    constexpr auto operator[](std::string_view) -> var&;
+    constexpr auto operator[](std::string_view) const -> const var&;
 
     consteval auto to_runtime() const;
 
@@ -94,11 +92,13 @@ constexpr auto type(const var& variable)
 {
     return  std::visit(
                 overloaded{
+                    [](null_t) { return "null"; },
                     [](integer_t) { return "number"; },
                     [](float_t) { return "number"; },
                     [](bool_t) { return "boolean"; },
                     [](const string_t&) { return "string"; },
                     [](const array_t&) { return "array"; },
+                    [](const object_t&) { return "object"; },
                     [](const function_t&) { return "function"; },
                 },
                 variable.data
@@ -110,30 +110,38 @@ constexpr var::var(std::same_as<data_t> auto&& data_variant) : data{std::forward
 constexpr var::var(CType auto&& variable) : data{[&]() -> data_t
 {
     using Type = std::remove_reference_t<decltype(variable)>;
-    if constexpr (std::is_same_v<Type, bool_t>)
+    if constexpr (std::same_as<Type, bool_t>)
         return variable;
     else if constexpr (std::is_integral_v<Type>)
         return TO_INTEGER(variable);
     else if constexpr (std::is_floating_point_v<Type>)
         return TO_FLOAT(variable);
-    else if constexpr (is_string_v<Type>)
+    else if constexpr (CString<Type>)
         return TO_STRING(std::forward<Type>(variable));
-    else if constexpr (std::is_convertible_v<Type, array_t> or std::is_convertible_v<Type, function_t>)
+    else if constexpr (std::same_as<Type, null_t>
+        or std::is_convertible_v<Type, array_t>
+        or std::is_convertible_v<Type, function_t>
+        or std::is_convertible_v<Type, object_t>
+    )
         return std::forward<Type>(variable);
 }()} {}
 
 constexpr auto var::operator=(CType auto&& variable) -> var&
 {
     using Type = std::remove_reference_t<decltype(variable)>;
-    if constexpr (std::is_same_v<Type, bool_t>)
+    if constexpr (std::same_as<Type, bool_t>)
         data = variable;
     else if constexpr (std::is_integral_v<Type>)
         data = TO_INTEGER(variable);
     else if constexpr (std::is_floating_point_v<Type>)
         data = TO_FLOAT(variable);
-    else if constexpr (is_string_v<Type>)
+    else if constexpr (CString<Type>)
         data = TO_STRING(variable);
-    else if constexpr (std::is_same_v<Type, array_t> or std::is_same_v<Type, function_t>)
+    else if constexpr (std::same_as<Type, null_t>
+        or std::is_convertible_v<Type, array_t>
+        or std::is_convertible_v<Type, function_t>
+        or std::is_convertible_v<Type, object_t>
+    )
         data = variable;
     return *this;
 }
@@ -172,11 +180,12 @@ constexpr var::var(Blob::CObject auto o)
     }
 }
 
-constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto& operand) const -> var
+constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto arg) -> data_t {
                         if constexpr (std::is_same_v<Type, string_t>)
                             return operand + sh::to_string(arg);
@@ -190,59 +199,67 @@ constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto& opera
                             return sh::to_string(operand).append(arg);
                     },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 this->data
             );
 }
 
-constexpr auto var::operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) const -> var
+constexpr auto var::operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto arg) -> data_t { return arg - operand; },
                     [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 this->data
             );
 }
 
-constexpr auto var::operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) const -> var
+constexpr auto var::operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto num) -> data_t { return num * operand; },
                     [&](string_t str_copy) -> data_t { return sh::string_multiplication(str_copy, operand); },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 this->data
             );
 }
 
-constexpr auto var::operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) const -> var
+constexpr auto var::operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
-                    [&](CArithmetic auto  arg) -> data_t { return arg / operand; },
+                    invalid_type<data_t, null_t, Type>(),
+                    [&](CArithmetic auto arg) -> data_t { return arg / operand; },
                     [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 this->data
             );
 }
 
-constexpr auto var::operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) const -> var
+constexpr auto var::operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](bool_t arg) -> data_t { return arg % operand; },
                     [&](integer_t arg) -> data_t { return arg % operand; },
                     [&](float_t arg) -> data_t {
@@ -251,6 +268,7 @@ constexpr auto var::operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION
                     },  // TODO:
                     invalid_type<data_t, string_t, Type>(),
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 this->data
@@ -263,44 +281,49 @@ constexpr auto operator+(const CType auto& operand, const var& variable) -> var
     return variable + operand;
 }
 
-constexpr auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand, const var& variable) -> var
+constexpr auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand, const var& variable) -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
-                    [&](CArithmetic auto  arg) -> data_t { return operand - arg; },
+                    invalid_type<data_t, null_t, Type>(),
+                    [&](CArithmetic auto arg) -> data_t { return operand - arg; },
                     [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 variable.data
             );
 }
 
-constexpr auto operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand, const var& variable) -> var
+constexpr auto operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand, const var& variable) -> var
 {
     return variable * operand;
 }
 
-constexpr auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand, const var& variable) -> var
+constexpr auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand, const var& variable) -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto arg) -> data_t { return operand / arg; },
                     [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 variable.data
             );
 }
 
-constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand, const var& variable) -> var
+constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand, const var& variable) -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     return  std::visit(
                 overloaded{
+                    invalid_type<data_t, null_t, Type>(),
                     [&](integer_t arg) -> data_t { return operand % arg; },
                     [&](float_t arg) -> data_t  {
                         if consteval { throw std::invalid_argument{"Cannot use operator% on doubles in compiletime"}; }
@@ -309,19 +332,21 @@ constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> aut
                     [&](bool_t arg)-> data_t  { return operand % arg; },
                     [](const string_t&)-> data_t  { throw std::invalid_argument{"Cannot use operator% on strings"}; },
                     invalid_type<data_t, array_t, Type>(),
+                    invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
                 },
                 variable.data
             );
 }
 
-constexpr auto var::operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto& operand) -> var&
+constexpr auto var::operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) -> var&
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     std::visit(
         overloaded{
+            invalid_type<void, null_t, Type>(),
             [&](CArithmetic auto num) {
-                if constexpr (is_string_v<Type>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};  // TODO: js style
+                if constexpr (CString<Type>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};  // TODO: js style
                 else data = data_t(num + operand);
             },
             [&](string_t& str) {
@@ -329,6 +354,7 @@ constexpr auto var::operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto& oper
                 else str += operand;
             },
             invalid_type<void, array_t, Type>(),
+            invalid_type<void, object_t, Type>(),
             invalid_type<void, function_t, Type>(),
         },
         this->data
@@ -336,14 +362,16 @@ constexpr auto var::operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION> auto& oper
     return *this;
 }
 
-constexpr auto var::operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) -> var&
+constexpr auto var::operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) -> var&
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     std::visit(
         overloaded{
+            invalid_type<void, null_t, Type>(),
             [&](CArithmetic auto data) { this->data = data_t(data - operand); },
             [](const string_t&) { throw std::invalid_argument{"Cannot perform subtraction on strings"}; },
             invalid_type<void, array_t, Type>(),
+            invalid_type<void, object_t, Type>(),
             invalid_type<void, function_t, Type>(),
         },
         this->data
@@ -352,14 +380,16 @@ constexpr auto var::operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
 }
 
 
-constexpr auto var::operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) -> var&
+constexpr auto var::operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) -> var&
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     std::visit(
         overloaded{
+            invalid_type<void, null_t, Type>(),
             [&](CArithmetic auto num) { this->data = data_t(num * operand); },
             [&](string_t& str) { sh::string_multiplication(str, operand); },
             invalid_type<void, array_t, Type>(),
+            invalid_type<void, object_t, Type>(),
             invalid_type<void, function_t, Type>(),
         },
         this->data
@@ -367,26 +397,22 @@ constexpr auto var::operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
     return *this;
 }
 
-constexpr auto var::operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION> auto& operand) -> var&
+constexpr auto var::operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT> auto& operand) -> var&
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
     std::visit(
         overloaded{
+            invalid_type<void, null_t, Type>(),
             [&](CArithmetic auto data) { this->data = data_t(data / operand); },
             [](const string_t&) { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
             invalid_type<void, array_t, Type>(),
+            invalid_type<void, object_t, Type>(),
             invalid_type<void, function_t, Type>(),
         },
         this->data
     );
     return *this;
 }
-// constexpr auto var::operator%=(const CType<EXCL_STRING, EXCL_ARRAY> auto&) -> var&;
-// constexpr friend auto operator+=(const CType auto& op1, const var&) -> decltype(op1);
-// constexpr friend auto operator-=(const CType<EXCL_STRING, EXCL_ARRAY> auto& op1, const var&) -> decltype(op1);
-// constexpr friend auto operator*=(const CType auto& op1, const var&) -> decltype(op1);
-// constexpr friend auto operator/=(const CType<EXCL_STRING, EXCL_ARRAY> auto& op1, const var&) -> decltype(op1);
-// constexpr friend auto operator%=(const CType<EXCL_STRING, EXCL_ARRAY> auto& op1, const var&) -> decltype(op1);
 
 constexpr std::strong_ordering var::operator<=>(const var& other) const
 {
@@ -398,9 +424,11 @@ constexpr auto var::operator()(const array_t& args) -> var
     return std::visit(
         overloaded{
             [&](const function_t& f) { return f(args); },
-            [](const CArithmetic auto&) -> var { throw std::invalid_argument{"Not callable"}; },
+            [](const CArithmetic auto) -> var { throw std::invalid_argument{"Not callable"}; },
             [](const string_t&) -> var { throw std::invalid_argument{"Not callable"}; },
             [](const array_t&) -> var { throw std::invalid_argument{"Not callable"}; },
+            [](const object_t&) -> var { throw std::invalid_argument{"Not callable"}; },
+            [](const null_t) -> var { throw std::invalid_argument{"Not callable"}; },
         },
         this->data
     );
@@ -441,10 +469,24 @@ consteval auto var::to_runtime() const
                 return Blob::make_obj(
                     Blob::make_field<DataType::NATIVE, "data">(data),
                     Blob::make_field<DataType::NATIVE, "len">((size_t)0),
-                    Blob::make_field<DataType::NATIVE, "type">(DataType::ARRAY)
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::FUNCTION)
                 );
             },
-            // TODO: support array, object, function
+            [&](const object_t&) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "data">(data),
+                    Blob::make_field<DataType::NATIVE, "len">((size_t)0),
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::OBJECT)
+                );
+            },
+            [&](null_t) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "data">(data),
+                    Blob::make_field<DataType::NATIVE, "len">((size_t)0),
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::NILL)
+                );
+            },
+            // TODO: implement
         },
         this->data
     );
@@ -458,9 +500,11 @@ std::ostream& operator<<(std::ostream& os, const var& variable)
     {
         std::visit(
             overloaded {
+                [&](const null_t arg) { os << arg; },
+                [&](const CArithmetic auto arg) { os << arg; },
                 [&](const string_t& str) { os << '\'' << str << '\''; },
-                [&](CArithmetic auto arg) { os << arg; },
                 [&](const array_t& arg) { os << arg; },
+                [&](const object_t& arg) { os << arg; },
                 [&](const function_t& arg) { os << arg; },
             },
             variable.data
@@ -480,6 +524,7 @@ std::ostream& operator<<(std::ostream& os, const var& variable)
             },
             [&](const string_t& str) { os << std::string{str.begin(), str.end()}; },
             [&](const function_t&) { os << "function"; },  // TODO:
+            [&](const object_t&) { os << "object"; },  // TODO:
             [&](const auto arg) { os << arg; },
         },
         variable.data
@@ -489,34 +534,40 @@ std::ostream& operator<<(std::ostream& os, const var& variable)
 
 template <CType T>
 constexpr var::operator T() const {
-    if constexpr (std::is_same_v<T, bool_t>) {
+    if constexpr (std::same_as<T, bool_t>) {
         return  std::visit(
                     overloaded{
+                        invalid_type<T, null_t, T>(),
                         [](CArithmetic auto arg) { return static_cast<bool_t>(arg); },
                         [](const string_t& arg) { return arg != ""; },
                         invalid_type<T, array_t, T>(),
+                        invalid_type<T, object_t, T>(),
                         invalid_type<T, function_t, T>(),
                     },
                     this->data
                 );
     }
-    if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    if constexpr (CArithmetic<T>) {
         return  std::visit(
                     overloaded{
+                        invalid_type<T, null_t, T>(),
                         [](CArithmetic auto arg) { return static_cast<T>(arg); },
                         [](const string_t&) -> T { throw std::invalid_argument{"Cannot convert strings to numeric type"}; },
                         invalid_type<T, array_t, T>(),
+                        invalid_type<T, object_t, T>(),
                         invalid_type<T, function_t, T>(),
                     },
                     this->data
                 );
     }
-    if constexpr (is_string_v<T>) {
+    if constexpr (CString<T>) {
         return  std::visit(
                     overloaded{
+                        invalid_type<T, null_t, T>(),
                         [](CArithmetic auto) { throw std::invalid_argument{"Cannot convert numeric type to string"}; },
                         [](const string_t& str) -> T { return str; },
                         invalid_type<T, array_t, T>(),
+                        invalid_type<T, object_t, T>(),
                         invalid_type<T, function_t, T>(),
                     },
                     this->data

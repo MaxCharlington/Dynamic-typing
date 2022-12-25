@@ -12,6 +12,7 @@ namespace DynamicTyping::Types {
 
 namespace th = Types;
 
+using null_t      = std::nullptr_t;
 using integer_t   = int64_t; // int128_t?
 using float_t     = long double;
 using string_t    = cest::string;

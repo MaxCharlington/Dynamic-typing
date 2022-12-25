@@ -1,5 +1,3 @@
-let a = 10
-var b = a;
-const c = "asdasd"
+const b = 40
 
 console.log(b);

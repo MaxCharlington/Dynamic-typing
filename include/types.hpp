@@ -42,10 +42,10 @@ template <typename T>
 consteval auto data_type() -> DataType {
     if constexpr      (std::is_integral_v<T>)              return DataType::INTEGER;
     else if constexpr (std::is_floating_point_v<T>)        return DataType::FLOAT;
-    else if constexpr (std::is_same_v<T, bool_t>)          return DataType::BOOL;
-    else if constexpr (is_string_v<T>)                     return DataType::STRING;
-    else if constexpr (std::is_same_v<T, array_t>)         return DataType::ARRAY;
-    else if constexpr (std::is_same_v<T, object_t>)        return DataType::OBJECT;
+    else if constexpr (std::same_as<T, bool_t>)            return DataType::BOOL;
+    else if constexpr (CString<T>)                         return DataType::STRING;
+    else if constexpr (std::convertible_to<T, array_t>)    return DataType::ARRAY;
+    else if constexpr (std::same_as<T, object_t>)          return DataType::OBJECT;
     else if constexpr (std::convertible_to<T, function_t>) return DataType::FUNCTION;
     else                                                   return DataType::UNDEFINED;
 }
@@ -79,12 +79,13 @@ namespace excluded_impl {
 
 template <typename T, DataType ...Exclude>
 consteval bool IsExcluded() {
-    if constexpr (std::is_same_v<T, bool_t>          and (... or (Exclude == DataType::BOOL))) return true;
+    if constexpr (std::same_as<T, null_t>            and (... or (Exclude == DataType::NILL))) return true;
+    if constexpr (std::same_as<T, bool_t>            and (... or (Exclude == DataType::BOOL))) return true;
     if constexpr (std::is_integral_v<T>              and (... or (Exclude == DataType::INTEGER))) return true;
     if constexpr (std::is_floating_point_v<T>        and (... or (Exclude == DataType::FLOAT))) return true;
-    if constexpr (is_string_v<T>                     and (... or (Exclude == DataType::STRING))) return true;
-    if constexpr (std::is_same_v<T, array_t>         and (... or (Exclude == DataType::ARRAY))) return true;
-    if constexpr (std::is_same_v<T, object_t>        and (... or (Exclude == DataType::OBJECT))) return true;
+    if constexpr (CString<T>                         and (... or (Exclude == DataType::STRING))) return true;
+    if constexpr (std::convertible_to<T, array_t>    and (... or (Exclude == DataType::ARRAY))) return true;
+    if constexpr (std::convertible_to<T, object_t>   and (... or (Exclude == DataType::OBJECT))) return true;
     if constexpr (std::convertible_to<T, function_t> and (... or (Exclude == DataType::FUNCTION))) return true;
     else return false;
 }
@@ -99,13 +100,16 @@ constexpr bool CExcluded = excluded_impl::IsExcluded<T, Exclude...>();
 template <typename T, DataType ...Exclude>
 concept CType =
     (
-        CArithmetic<T>
+        std::same_as<T, null_t>
+        or CArithmetic<T>
         or CString<T>
         or std::is_convertible_v<T, array_t>
+        or std::is_convertible_v<T, object_t>
         or std::is_convertible_v<T, function_t>
     )
     and not CExcluded<T, DataType::UNDEFINED, Exclude...>;
 
+static constexpr auto EXCL_NILL = DataType::NILL;
 static constexpr auto EXCL_STRING = DataType::STRING;
 static constexpr auto EXCL_ARRAY = DataType::ARRAY;
 static constexpr auto EXCL_OBJECT = DataType::OBJECT;
@@ -114,7 +118,8 @@ static constexpr auto EXCL_FUNCTION = DataType::FUNCTION;
 template<typename Ret, typename T1, typename T2>
 consteval auto invalid_type()
 {
-    return [](const T1&) -> Ret { throw std::invalid_argument{"unsupported operands: " + std::string{typeid(T1).name()} + " and " + std::string{typeid(T2).name()}}; };
+    using Arg = decltype(std::is_class_v<T1> ? std::declval<std::add_lvalue_reference_t<T1>>() : std::declval<T1>());
+    return [](Arg) -> Ret { throw std::invalid_argument{"unsupported operands: " + std::string{typeid(T1).name()} + " and " + std::string{typeid(T2).name()}}; };
 }
 
 // template<typename Ret, typename T>

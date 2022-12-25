@@ -57,5 +57,5 @@ int main()
     std::cout << sizeof(d) << '\n';
     S s = d;
     puts(s.str.data());
-    return s.num;
+    std::cout << s.num << '\n';
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -x
+set -x
 
 SCRIPT_PATH="$(dirname -- "${BASH_SOURCE[0]}")"
 TMP_PATH="${SCRIPT_PATH}/tmp"  # TODO: move to /tmp?
@@ -16,6 +16,6 @@ command -v json2cpp >/dev/null 2>&1 || { echo >&2 "json2cpp is required. Abortin
 json2cpp prog ${TMP_PATH}/ast.json ${TMP_PATH}/ast
 
 echo ---------- Compiling AST to exe ----------
-INSTALL_PATH=${SCRIPT_PATH}/../build/install/include  // TODO: expect installed
+INSTALL_PATH="${SCRIPT_PATH}/../build/install/include"  # TODO: expect installed
 command -v g++ >/dev/null 2>&1 || { echo >&2 "json2cpp is required. Aborting."; exit 1; }
-g++ -std=c++2b ${SCRIPT_PATH}/prog.cpp ${TMP_PATH}/ast.cpp -I${INSTALL_PATH} -I${TMP_PATH} -o $2
+g++ -std=c++2b ${SCRIPT_PATH}/prog.cpp -I${INSTALL_PATH} -I${TMP_PATH} -o $2
