@@ -2,5 +2,3 @@
 build/
 *.out
 *.gch
-node_modules
-tmp/
