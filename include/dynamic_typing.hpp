@@ -4,6 +4,7 @@
 #include <cmath>
 #include <concepts>
 #include <iosfwd>
+#include <ranges>
 #include <stdexcept>
 #include <type_traits>
 #include <variant>
@@ -81,6 +82,7 @@ public:
     consteval auto to_runtime() const;
 
     friend auto operator<<(std::ostream&, const var&) -> std::ostream&;
+    friend auto operator>>(std::istream&, var&) -> std::istream&;
 
     friend constexpr auto type(const var&);
 
@@ -93,8 +95,8 @@ constexpr auto type(const var& variable)
     return  std::visit(
                 overloaded{
                     [](null_t) { return "null"; },
-                    [](integer_t) { return "number"; },
-                    [](float_t) { return "number"; },
+                    [](integer_t) { return "number (integer)"; },
+                    [](float_t) { return "number (float)"; },
                     [](bool_t) { return "boolean"; },
                     [](const string_t&) { return "string"; },
                     [](const array_t&) { return "array"; },
@@ -492,8 +494,6 @@ consteval auto var::to_runtime() const
     );
 }
 
-
-
 std::ostream& operator<<(std::ostream& os, const var& variable)
 {
     auto print_arr_impl = [](std::ostream& os, const var& variable)
@@ -530,6 +530,47 @@ std::ostream& operator<<(std::ostream& os, const var& variable)
         variable.data
     );
     return os;
+}
+
+std::istream& operator>>(std::istream& is, var& variable)
+{
+    const auto is_integer = [](const std::string& str)
+    {
+        // TODO: add length check
+        if (str.length() == 0) return false;
+        if (str.length() == 1 and str[0] >= '0' and str[0] <= '9') return true;
+        return (str[0] == '-' or (str[0] >= '0' and str[0] <= '9')) and std::all_of(str.begin() + 1, str.end(), [](char symb){ return symb >= '0' and symb <= '9'; });
+    };
+
+    const auto is_float = [](const std::string& str)
+    {
+        // TODO: add length check
+        if (str.length() == 0) return false;
+        else if (str.length() == 1 and str[0] >= '0' and str[0] <= '9') return true;
+        else {
+            return (str[0] == '-' or (str[0] >= '0' and str[0] <= '9')) and std::all_of(str.begin() + 1, str.end(), [met_dot = false](char symb){
+                if (symb >= '0' and symb <= '9') return true;
+                if (symb == '.' and not met_dot) return true;
+                return false;
+            });
+        }
+    };
+
+    std::string input;
+    std::getline(is, input);
+    if (is_integer(input))
+    {
+        variable = std::stol(input);
+    }
+    else if (is_float(input))
+    {
+        variable = std::stod(input);
+    }
+    else
+    {
+        variable = input.c_str();
+    }
+    return is;
 }
 
 template <CType T>
