@@ -100,14 +100,14 @@ constexpr bool CExcluded = excluded_impl::IsExcluded<T, Exclude...>();
 template <typename T, DataType ...Exclude>
 concept CType =
     (
-        std::same_as<T, null_t>
-        or CArithmetic<T>
-        or CString<T>
-        or std::is_convertible_v<T, array_t>
-        or std::is_convertible_v<T, object_t>
-        or std::is_convertible_v<T, function_t>
+        std::same_as<std::remove_cvref_t<T>, null_t>
+        or CArithmetic<std::remove_cvref_t<T>>
+        or CString<std::remove_cvref_t<T>>
+        or std::is_convertible_v<std::remove_cvref_t<T>, array_t>
+        or std::is_convertible_v<std::remove_cvref_t<T>, object_t>
+        or std::is_convertible_v<std::remove_cvref_t<T>, function_t>
     )
-    and not CExcluded<T, DataType::UNDEFINED, Exclude...>;
+    and not CExcluded<std::remove_cvref_t<T>, DataType::UNDEFINED, Exclude...>;
 
 static constexpr auto EXCL_NILL = DataType::NILL;
 static constexpr auto EXCL_STRING = DataType::STRING;
