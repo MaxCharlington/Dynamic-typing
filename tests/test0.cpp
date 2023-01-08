@@ -46,6 +46,11 @@ consteval auto test0()
     // Array
     var arr = array_t{string, string3};
 
+    // Function
+    var f = [](object_t&) -> var { return 0; };
+    object_t ctx;
+    var ret = f(ctx);
+
 
     // Dinamicnesssss
     var variable;
@@ -82,6 +87,7 @@ int main()
     test2();
 
     // Func
-    var f = [](array_t) -> var { return {}; };
-    var ret = f();
+    var f = [](object_t&) -> var { return {}; };
+    object_t ctx;
+    var ret = f(ctx);
 }

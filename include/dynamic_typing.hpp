@@ -75,13 +75,13 @@ public:
     template <CType T>
     constexpr operator T() const;
 
-    constexpr auto operator()(const array_t& args = {}) -> var;
+    constexpr auto operator()(object_t& args) -> var;
     constexpr auto operator[](std::string_view) -> var&;
     constexpr auto operator[](std::string_view) const -> const var&;
     constexpr auto operator[](std::size_t) -> var&;
     constexpr auto operator[](std::size_t) const -> const var&;
 
-    consteval auto to_runtime() const;
+    // consteval auto to_runtime() const;
 
     friend auto operator<<(std::ostream&, const var&) -> std::ostream&;
     friend auto operator>>(std::istream&, var&) -> std::istream&;
@@ -440,11 +440,11 @@ constexpr std::strong_ordering var::operator<=>(const var& other) const
     return this->data.index() <=> other.data.index();  // TODO:
 }
 
-constexpr auto var::operator()(const array_t& args) -> var
+constexpr auto var::operator()(object_t& args) -> var
 {
     return std::visit(
         overloaded{
-            [&](const function_t& f) { return f(args); },
+            [&](function_t f) { return f(args); },
             [](const CArithmetic auto) -> var { throw std::invalid_argument{"Not callable"}; },
             [](const string_t&) -> var { throw std::invalid_argument{"Not callable"}; },
             [](const array_t&) -> var { throw std::invalid_argument{"Not callable"}; },

@@ -32,11 +32,11 @@ enum class DataType {
     NATIVE
 };
 
-using variable_t = std::pair<std::string, var>;
+using variable_t = std::pair<cest::string, var>;
 using array_t =    std::vector<var>;
 using field_t =    variable_t;
 using object_t =   std::vector<field_t>;
-using function_t = std::function<var(array_t)>;
+using function_t = var(*)(object_t&);
 
 template <typename T>
 consteval auto data_type() -> DataType {
