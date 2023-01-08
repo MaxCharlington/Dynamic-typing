@@ -79,6 +79,7 @@ namespace excluded_impl {
 
 template <typename T, DataType ...Exclude>
 consteval bool IsExcluded() {
+    if constexpr (std::same_as<T, undefined_t>       and (... or (Exclude == DataType::UNDEFINED))) return true;
     if constexpr (std::same_as<T, null_t>            and (... or (Exclude == DataType::NILL))) return true;
     if constexpr (std::same_as<T, bool_t>            and (... or (Exclude == DataType::BOOL))) return true;
     if constexpr (std::is_integral_v<T>              and (... or (Exclude == DataType::INTEGER))) return true;
@@ -100,15 +101,17 @@ constexpr bool CExcluded = excluded_impl::IsExcluded<T, Exclude...>();
 template <typename T, DataType ...Exclude>
 concept CType =
     (
-        std::same_as<std::remove_cvref_t<T>, null_t>
+        std::same_as<std::remove_cvref_t<T>, undefined_t>
+        or std::same_as<std::remove_cvref_t<T>, null_t>
         or CArithmetic<std::remove_cvref_t<T>>
         or CString<std::remove_cvref_t<T>>
         or std::is_convertible_v<std::remove_cvref_t<T>, array_t>
         or std::is_convertible_v<std::remove_cvref_t<T>, object_t>
         or std::is_convertible_v<std::remove_cvref_t<T>, function_t>
     )
-    and not CExcluded<std::remove_cvref_t<T>, DataType::UNDEFINED, Exclude...>;
+    and not CExcluded<std::remove_cvref_t<T>, Exclude...>;
 
+static constexpr auto EXCL_UNDEFINED = DataType::UNDEFINED;
 static constexpr auto EXCL_NILL = DataType::NILL;
 static constexpr auto EXCL_STRING = DataType::STRING;
 static constexpr auto EXCL_ARRAY = DataType::ARRAY;

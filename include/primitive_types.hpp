@@ -2,7 +2,9 @@
 #define PRIM_TYPES_H
 
 #include <cstdint>
+#include <limits>
 #include <type_traits>
+#include <variant>
 
 #include <cest/string.hpp>
 
@@ -13,10 +15,13 @@ namespace DynamicTyping::Types {
 namespace th = Types;
 
 using null_t      = std::nullptr_t;
-using integer_t   = int64_t; // int128_t?
+using integer_t   = int64_t;  // int128_t?
 using float_t     = long double;
-using string_t    = cest::string;
+using string_t    = cest::string;  // constexpr patched std::string
 using bool_t      = bool;
+using undefined_t = std::monostate;
+
+constexpr float_t NaN = std::numeric_limits<float_t>::quiet_NaN();
 
 // Arithmetic concept
 template <typename T> concept CArithmetic = std::is_arithmetic_v<T>;

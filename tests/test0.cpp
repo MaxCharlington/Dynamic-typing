@@ -58,12 +58,12 @@ consteval auto test0()
     return floating;
 }
 
-constexpr auto test1()
-{
-    var string = "asdasdasd";
+// constexpr auto test1()
+// {
+//     var string = "asdasdasd";
 
-    return string;
-}
+//     return string;
+// }
 
 auto test2()
 {
@@ -71,15 +71,14 @@ auto test2()
     std::cout << arr << '\n';
 }
 
-namespace ctr = DynamicTyping::CTRHelper;
 
 int main()
 {
     constexpr auto variable0 = test0();
     std::cout << variable0 << '\n';
 
-    var variable1 = ctr::to_runtime<test1>();
-    std::cout << variable1 << '\n';
+    // var variable1 = ctr::to_runtime<test1>();
+    // std::cout << variable1 << '\n';
     test2();
 
     // Func
