@@ -19,7 +19,7 @@ concept CObject  = requires (T obj, const char* field_name){
     {obj[field_name]} -> std::same_as<const var&>;
 };
 
-#define IVariable Cvariable auto
+#define IVariable CVariable auto
 #define IArray CArray auto
 #define IObject CObject auto
 

@@ -22,6 +22,7 @@ using bool_t      = bool;
 using undefined_t = std::monostate;
 
 constexpr float_t NaN = std::numeric_limits<float_t>::quiet_NaN();
+constexpr undefined_t undefined;
 
 // Arithmetic concept
 template <typename T> concept CArithmetic = std::is_arithmetic_v<T>;

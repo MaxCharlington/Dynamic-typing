@@ -19,7 +19,7 @@ namespace DynamicTyping::Types {
 
 namespace th = Types;
 
-enum class DataType {
+enum class DataType : std::uint8_t {
     NILL,
     UNDEFINED,
     INTEGER,
@@ -122,7 +122,14 @@ template<typename Ret, typename T1, typename T2>
 consteval auto invalid_type()
 {
     using Arg = decltype(std::is_class_v<T1> ? std::declval<std::add_lvalue_reference_t<T1>>() : std::declval<T1>());
-    return [](Arg) -> Ret { throw std::invalid_argument{"unsupported operands: " + std::string{typeid(T1).name()} + " and " + std::string{typeid(T2).name()}}; };
+    return [](Arg) -> Ret { throw std::invalid_argument{"Unsupported operands: " + std::string{typeid(T1).name()} + " and " + std::string{typeid(T2).name()}}; };
+}
+
+template<typename Ret, typename T>
+consteval auto invalid_type()
+{
+    using Arg = decltype(std::is_class_v<T> ? std::declval<std::add_lvalue_reference_t<T>>() : std::declval<T>());
+    return [](Arg) -> Ret { throw std::invalid_argument{"Unsupported operand: " + std::string{typeid(T).name()}}; };
 }
 
 // template<typename Ret, typename T>

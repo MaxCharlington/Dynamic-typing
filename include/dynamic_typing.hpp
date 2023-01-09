@@ -9,9 +9,11 @@
 #include <type_traits>
 #include <variant>
 
+#include <ct2rt.hpp>
+#include <overloaded.hpp>
+
 #include <blob_types.hpp>
 #include <string_helper.hpp>
-#include <overloaded.hpp>
 #include <types.hpp>
 
 
@@ -46,7 +48,13 @@ public:
     constexpr var(std::same_as<data_t> auto&&);
     constexpr auto operator=(CType auto&&) -> var&;
 
-    // constexpr var(Blob::CObject auto);
+    // ct2rt support
+    constexpr auto sizes_count() const -> std::size_t;
+    template<std::size_t Count>
+    constexpr auto sizes() const;
+    template<auto Sizes>
+    constexpr auto serialize() const;
+    var(const Blob::CIsTuple auto& repr);
 
     // Arithmetic
     constexpr auto operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto&) const -> var;
@@ -155,39 +163,134 @@ constexpr auto var::operator=(CType auto&& variable) -> var&
     return *this;
 }
 
-// constexpr var::var(Blob::CObject auto o)
-// {
-//     const auto raw_data = o.template get<"data">();
-//     const auto data_type = o.template get<"type">();
-//     assert(o.size() == 2);
+namespace detail
+{
+    template<typename T>
+    void init_with(auto& data, const auto& raw_data) {
+        std::array<char, sizeof(T)> repr;
+        std::copy_n(raw_data.begin(), repr.size(), repr.data());
+        data = std::bit_cast<T>(repr);
+    };
+};
 
-//     if (data_type == DataType::STRING)
-//     {
-//         data = string_t{raw_data.data()};
-//     }
-//     else
-//     {
-//         if (data_type == DataType::INTEGER) {
-//             const auto size = sizeof(integer_t);
-//             std::array<char, size> integer_repr;
-//             std::copy_n(raw_data.begin(), size, integer_repr.data());
-//             data = std::bit_cast<integer_t>(integer_repr);
-//         }
-//         else if (data_type == DataType::FLOAT) {
-//             const auto size = sizeof(float_t);
-//             std::array<char, size> float_repr;
-//             std::copy_n(raw_data.begin(), size, float_repr.data());
-//             data = std::bit_cast<float_t>(float_repr);
-//         }
-//         else if (data_type == DataType::BOOL) {
-//             const auto size = sizeof(bool_t);
-//             std::array<char, size> bool_repr;
-//             std::copy_n(raw_data.begin(), size, bool_repr.data());
-//             data = std::bit_cast<bool_t>(bool_repr);
-//         }
-//         // TODO: support array and function
-//     }
-// }
+var::var(const Blob::CIsTuple auto& repr)
+{
+    Blob::Object obj_repr{repr};
+    const auto data_type = obj_repr.template get<"type">();
+    const auto raw_data = obj_repr.template get<"data">();
+
+    switch (data_type)
+    {
+    break; case DataType::UNDEFINED:
+        data = undefined;
+    break; case DataType::NILL:
+        data = nullptr;
+    break; case DataType::INTEGER:
+        detail::init_with<integer_t>(data, raw_data);
+    break; case DataType::FLOAT:
+        detail::init_with<float_t>(data, raw_data);
+    break; case DataType::BOOL:
+        detail::init_with<bool_t>(data, raw_data);
+    break; case DataType::STRING:
+        data = string_t{raw_data.data()};
+    break; default:
+        throw std::invalid_argument{"Unsupported type for deserialization: " + std::to_string(static_cast<uint8_t>(data_type))};
+    }
+    // TODO: support array and function
+}
+
+constexpr auto var::sizes_count() const -> std::size_t
+{
+    return  std::visit(
+        overloaded{
+            [&](undefined_t) { return 1uz; },
+            [&](null_t) { return 1uz; },
+            [&](CArithmetic auto) { return 1uz; },
+            [&](function_t) { return 1uz; },
+            [&](const string_t&) { return 1uz; },
+            invalid_type<std::size_t, array_t>(),  // TODO: implement sizes_count
+            invalid_type<std::size_t, object_t>(),  // TODO: implement sizes_count
+        },
+        this->data
+    );
+}
+
+template<std::size_t Count>
+constexpr auto var::sizes() const
+{
+    std::array<std::size_t, Count> sizes;
+    std::visit(
+        overloaded{
+            [&](undefined_t) { sizes[0] = 0; },
+            [&](null_t) { sizes[0] = 0; },
+            [&](bool_t num) { sizes[0] = sizeof(num); },
+            [&](CArithmetic auto num) { sizes[0] = sizeof(num); },
+            [&](function_t func) { sizes[0] = sizeof(func); },
+            [&](const string_t& str) { sizes[0] = (str.length() + 1) * sizeof(string_t::value_type); },
+            invalid_type<void, array_t>(),  // TODO: implement sizes
+            invalid_type<void, object_t>(),  // TODO: implement sizes
+        },
+        this->data
+    );
+    return sizes;
+}
+
+template<auto Sizes>
+constexpr auto var::serialize() const
+{
+    std::array<char, Sizes[0]> data;
+    return std::visit(
+        overloaded{
+            [&](undefined_t val) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(data_type<decltype(val)>()),
+                    Blob::make_field<DataType::NATIVE, "data">(data)  // To unify return type
+                );
+            },
+            [&](null_t val) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(data_type<decltype(val)>()),
+                    Blob::make_field<DataType::NATIVE, "data">(data)  // To unify return type
+                );
+            },
+            [&](CArithmetic auto val) {
+                auto raw_data = std::bit_cast<std::array<char, sizeof(val)>>(val);
+                std::copy_n(raw_data.begin(), raw_data.size(), data.data());
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(data_type<decltype(val)>()),
+                    Blob::make_field<DataType::NATIVE, "data">(data)
+                );
+            },
+            [&](const string_t& str) {
+                std::copy_n(str.begin(), Sizes[0], data.data());
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::STRING),
+                    Blob::make_field<DataType::NATIVE, "data">(data)
+                );
+            },
+            [&](const array_t&) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::ARRAY),
+                    Blob::make_field<DataType::NATIVE, "data">(data)
+                );
+            },
+            [&](const function_t&) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::FUNCTION),
+                    Blob::make_field<DataType::NATIVE, "data">(data)
+                );
+            },
+            [&](const object_t&) {
+                return Blob::make_obj(
+                    Blob::make_field<DataType::NATIVE, "type">(DataType::OBJECT),
+                    Blob::make_field<DataType::NATIVE, "data">(data)
+                );
+            },
+            // TODO: implement
+        },
+        this->data
+    );
+}
 
 constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto& operand) const -> var
 {
@@ -455,64 +558,6 @@ constexpr auto var::operator()(object_t& args) -> var
         this->data
     );
 }
-
-// consteval auto var::to_runtime() const
-// {
-//     std::array<char, 1024> data;
-//     return std::visit(
-//         overloaded{
-//             [&](CArithmetic auto val) {
-//                 const auto size = sizeof(decltype(val));
-//                 const auto val_data = std::bit_cast<std::array<char, size>>(val);
-//                 std::copy(std::begin(val_data), std::end(val_data), data.data());
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">(size),
-//                     Blob::make_field<DataType::NATIVE, "type">(data_type<decltype(val)>())
-//                 );
-//             },
-//             [&](const string_t& str) {
-//                 const auto size = str.length() + 1;  // For \0
-//                 std::copy_n(str.begin(), size, data.data());
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">(size),
-//                     Blob::make_field<DataType::NATIVE, "type">(DataType::STRING)
-//                 );
-//             },
-//             [&](const array_t&) {
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">((size_t)0),
-//                     Blob::make_field<DataType::NATIVE, "type">(DataType::ARRAY)
-//                 );
-//             },
-//             [&](const function_t&) {
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">((size_t)0),
-//                     Blob::make_field<DataType::NATIVE, "type">(DataType::FUNCTION)
-//                 );
-//             },
-//             [&](const object_t&) {
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">((size_t)0),
-//                     Blob::make_field<DataType::NATIVE, "type">(DataType::OBJECT)
-//                 );
-//             },
-//             [&](null_t) {
-//                 return Blob::make_obj(
-//                     Blob::make_field<DataType::NATIVE, "data">(data),
-//                     Blob::make_field<DataType::NATIVE, "len">((size_t)0),
-//                     Blob::make_field<DataType::NATIVE, "type">(DataType::NILL)
-//                 );
-//             },
-//             // TODO: implement
-//         },
-//         this->data
-//     );
-// }
 
 std::ostream& operator<<(std::ostream& os, const var& variable)
 {
