@@ -42,6 +42,11 @@ auto test()
     string += "helllp";
     if (string) {}
 
+    //Array
+    var arr1 = array_t{1, 2, "sdfsf", 5.6, nullptr, undefined, NaN};
+
+    // Object
+    var obj = object_t{{"name", "Max"}, {"age", 23.3}};
 
     // Dinamicnesssss
     var variable;

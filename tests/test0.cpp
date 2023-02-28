@@ -44,7 +44,10 @@ consteval auto test0()
     if (string) {}
 
     // Array
-    var arr = array_t{string, string3};
+    var arr = array_t{string, string3, 1, 5.6, undefined, nullptr, NaN};
+
+    // Object
+    var obj = object_t{{"name", "Max"}, {"age", 23.3}};
 
     // Function
     var f = [](object_t&) -> var { return 0; };
