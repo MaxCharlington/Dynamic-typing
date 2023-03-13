@@ -660,7 +660,7 @@ constexpr var::operator T() const {
     else if constexpr (CArithmetic<T>) {
         return  std::visit(
                     overloaded{
-                        [](null_t) { return 0; },
+                        [](null_t) -> T { return 0; },
                         invalid_type<T, undefined_t, T>(),
                         [](CArithmetic auto arg) { return static_cast<T>(arg); },
                         [](const string_t&) -> T { throw std::invalid_argument{"Cannot convert strings to numeric type"}; },
@@ -675,7 +675,8 @@ constexpr var::operator T() const {
         return  std::visit(
                     overloaded{
                         invalid_type<T, null_t, T>(),
-                        [](CArithmetic auto) { throw std::invalid_argument{"Cannot convert numeric type to string"}; },
+                        invalid_type<T, undefined_t, T>(),
+                        [](CArithmetic auto) -> T { throw std::invalid_argument{"Cannot convert numeric type to string"}; },
                         [](const string_t& str) -> T { return str; },
                         invalid_type<T, array_t, T>(),
                         invalid_type<T, object_t, T>(),
