@@ -15,6 +15,7 @@
 #include <blob_types.hpp>
 #include <string_helper.hpp>
 #include <types.hpp>
+#include <interfaces.hpp>
 
 
 namespace DynamicTyping {
@@ -75,19 +76,27 @@ public:
     constexpr auto operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto&) -> var&;
     constexpr auto operator%=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto&) -> var&;
 
-    constexpr std::strong_ordering operator<=>(const var&) const;
-
     constexpr operator data_t() const;
 
     // Universal conversion operator
     template <CType T>
     constexpr operator T() const;
 
+    // Function interface
     constexpr auto operator()(object_t& args) -> var;
+
+    // Object interface
     constexpr auto operator[](std::string_view) -> var&;
     constexpr auto operator[](std::string_view) const -> const var&;
+    constexpr auto keys() const -> var;
+
+    // Array interface
     constexpr auto operator[](std::size_t) -> var&;
     constexpr auto operator[](std::size_t) const -> const var&;
+    constexpr auto at(std::int64_t) -> var&;
+    constexpr auto at(std::int64_t) const -> const var&;
+    constexpr auto length() const -> var;
+
 
     // consteval auto to_runtime() const;
 
@@ -99,6 +108,9 @@ public:
 private:
     data_t data;
 };
+
+// Constant to return from functions
+inline const var undefined_var;
 
 constexpr auto typeof_impl(const var& variable)
 {
@@ -538,26 +550,108 @@ constexpr auto var::operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
     return *this;
 }
 
-constexpr std::strong_ordering var::operator<=>(const var& other) const
-{
-    return this->data.index() <=> other.data.index();  // TODO:
-}
-
 constexpr auto var::operator()(object_t& args) -> var
 {
-    return std::visit(
-        overloaded{
-            [&](function_t f) { return f(args); },
-            [](const CArithmetic auto) -> var { throw std::invalid_argument{"Not callable"}; },
-            [](const string_t&) -> var { throw std::invalid_argument{"Not callable"}; },
-            [](const array_t&) -> var { throw std::invalid_argument{"Not callable"}; },
-            [](const object_t&) -> var { throw std::invalid_argument{"Not callable"}; },
-            [](const null_t) -> var { throw std::invalid_argument{"Not callable"}; },
-            [](const undefined_t) -> var { throw std::invalid_argument{"Not callable"}; },
-        },
-        this->data
-    );
+    if (std::holds_alternative<function_t>(this->data)) {
+        return std::get<function_t>(this->data)(args);
+    }
+    throw std::invalid_argument{"not a function"};
 }
+
+constexpr auto var::operator[](std::string_view name) -> var&
+{
+    if (std::holds_alternative<object_t>(this->data)) {
+        object_t& obj = std::get<object_t>(this->data);
+        if (auto it = std::ranges::find_if(obj, [=](const auto& field){ return field.first == name; }); it != obj.end())
+        {
+            return it->second;
+        }
+    }
+    return const_cast<var&>(undefined_var);
+}
+
+constexpr auto var::operator[](std::string_view name) const -> const var&
+{
+    if (std::holds_alternative<object_t>(this->data)) {
+        const object_t& obj = std::get<object_t>(this->data);
+        if (auto it = std::ranges::find_if(obj, [=](const auto& field){ return field.first == name; }); it != obj.end())
+        {
+            return it->second;
+        }
+    }
+    return undefined_var;
+}
+
+constexpr auto var::keys() const -> var
+{
+    if (std::holds_alternative<object_t>(this->data)) {
+        const object_t& obj = std::get<object_t>(this->data);
+        array_t obj_keys;
+        obj_keys.reserve(obj.size());
+        for (const auto &field : obj)
+        {
+            obj_keys.push_back(field.first);
+        }
+        return obj_keys;
+    }
+    return undefined_var;
+}
+
+
+static_assert(Interfaces::CObject<var>);
+
+constexpr auto var::operator[](std::size_t index) -> var&
+{
+    if (std::holds_alternative<array_t>(this->data)) {
+        array_t& arr = std::get<array_t>(this->data);
+        if (arr.size() - 1 < index) return const_cast<var&>(undefined_var);
+        return arr[index];
+    }
+    return const_cast<var&>(undefined_var);
+}
+
+constexpr auto var::operator[](std::size_t index) const -> const var&
+{
+    if (std::holds_alternative<array_t>(this->data)) {
+        const array_t& arr = std::get<array_t>(this->data);
+        if (arr.size() - 1 < index) return undefined_var;
+        return arr[index];
+    }
+    return undefined_var;
+}
+
+constexpr auto var::at(std::int64_t index) -> var&
+{
+    if (std::holds_alternative<array_t>(this->data)) {
+        array_t& arr = std::get<array_t>(this->data);
+        if (index < 0) index = static_cast<std::int64_t>(arr.size()) + index;
+        if (arr.size() - 1 < static_cast<std::size_t>(index)) return const_cast<var&>(undefined_var);
+        return arr[index];
+    }
+    return const_cast<var&>(undefined_var);
+}
+
+constexpr auto var::at(std::int64_t index) const -> const var&
+{
+    if (std::holds_alternative<array_t>(this->data)) {
+        const array_t& arr = std::get<array_t>(this->data);
+        if (index < 0) index = static_cast<std::int64_t>(arr.size()) + index;
+        if (arr.size() - 1 < static_cast<std::size_t>(index)) return undefined_var;
+        return arr[index];
+    }
+    return undefined_var;
+}
+
+constexpr auto var::length() const -> var
+{
+    if (std::holds_alternative<array_t>(this->data)) {
+        return std::get<array_t>(this->data).size();
+    }
+    return undefined_var;
+}
+
+
+static_assert(Interfaces::CArray<var>);
 
 std::ostream& operator<<(std::ostream& os, const var& variable)
 {
