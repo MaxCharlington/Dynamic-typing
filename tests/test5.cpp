@@ -16,4 +16,10 @@ int main()
 
     var integer = 10;
     Types::integer_t integer_typed = integer;
+
+    if (num == -123.3) std::cout << "Eq\n";
+    num = 1;
+    var str2 = "1";
+    if (num == str2) std::cout << "Eq\n";
+
 }
