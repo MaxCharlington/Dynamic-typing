@@ -107,7 +107,9 @@ public:
     friend auto operator>>(std::istream&, var&) -> std::istream&;
 
     friend constexpr auto typeof_impl(const var&) -> const char*;
-    friend constexpr bool strict_equal_impl(const var&, const var&);
+
+    template<typename T1, typename T2>
+    friend constexpr bool strict_equal_impl(const T1&, const T2&);
 
 private:
     data_t data;
@@ -144,9 +146,71 @@ constexpr auto typeof_impl(const var& variable) -> const char*
             );
 }
 
-constexpr bool strict_equal_impl(const var& v1, const var& v2)
+template<typename T1, typename T2>
+constexpr bool strict_equal_impl(const T1& v1, const T2& v2)
 {
-    return v1.data.index() == v2.data.index() and v1 == v2;
+    using Type1 = std::remove_cvref_t<T1>;
+    using Type2 = std::remove_cvref_t<T2>;
+
+    if constexpr (std::same_as<Type1, Type2> and std::same_as<Type1, var>) return v1.data.index() == v2.data.index() and v1 == v2;
+    else if (std::same_as<Type1, var>)
+    {
+        if constexpr (std::same_as<Type2, undefined_t>)
+        {
+            return std::holds_alternative<undefined_t>(v1.data);
+        }
+        if constexpr (std::same_as<Type2, null_t>)
+        {
+            return std::holds_alternative<null_t>(v1.data);
+        }
+        else if constexpr (std::same_as<Type2, function_t>)
+        {
+            return std::holds_alternative<function_t>(v1.data) and (std::get<function_t>(v1.data) == v2);
+        }
+        else if constexpr (std::integral<Type2>)
+        {
+            return (std::holds_alternative<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
+                (std::holds_alternative<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
+        }
+        else if constexpr (std::floating_point<Type2>)
+        {
+            return (std::holds_alternative<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
+                (std::holds_alternative<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
+        }
+        else if constexpr (CString<Type2>)
+        {
+            return (std::holds_alternative<string_t>(v1.data) and (std::get<string_t>(v1.data) == v2));
+        }
+    }
+    else if (std::same_as<Type2, var>)
+    {
+        if constexpr (std::same_as<Type1, undefined_t>)
+        {
+            return std::holds_alternative<undefined_t>(v2.data);
+        }
+        if constexpr (std::same_as<Type1, null_t>)
+        {
+            return std::holds_alternative<null_t>(v2.data);
+        }
+        else if constexpr (std::same_as<Type1, function_t>)
+        {
+            return std::holds_alternative<function_t>(v2.data) and (std::get<function_t>(v2.data) == v1);
+        }
+        else if constexpr (std::integral<Type1>)
+        {
+            return (std::holds_alternative<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
+                (std::holds_alternative<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
+        }
+        else if constexpr (std::floating_point<Type1>)
+        {
+            return (std::holds_alternative<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
+                (std::holds_alternative<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
+        }
+        else if constexpr (CString<Type1>)
+        {
+            return (std::holds_alternative<string_t>(v2.data) and (std::get<string_t>(v2.data) == v1));
+        }
+    }
 }
 
 constexpr var::var(std::same_as<data_t> auto&& data_variant) : data{std::forward<data_t>(data_variant)} {}
