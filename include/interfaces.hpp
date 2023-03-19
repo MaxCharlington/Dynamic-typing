@@ -2,6 +2,7 @@
 
 #include <dynamic_typing.hpp>
 
+// Interfaces to check JS functions complience
 namespace DynamicTyping::Interfaces {
 
 template<typename T>

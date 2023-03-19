@@ -39,7 +39,7 @@ consteval auto test0()
     cest::string a = "str";
     var string = a;
     var string3 = "sadasd";
-    string *= 10;
+    // string *= 10; emits NaN which is not constexpr convertible to string
     string += "helllp";
     if (string) {}
 

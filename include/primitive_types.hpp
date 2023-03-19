@@ -25,15 +25,13 @@ constexpr float_t NaN = std::numeric_limits<float_t>::quiet_NaN();
 constexpr undefined_t undefined;
 
 // Arithmetic concept
-template <typename T> concept CArithmetic = std::is_arithmetic_v<T>;
+template <typename T>
+concept CArithmetic = std::is_arithmetic_v<std::remove_cvref_t<T>>;
 
 // String like types
 template <typename T>
-inline constexpr bool is_string_v = std::is_same_v<std::remove_cvref_t<T>, string_t> ||
-                                    std::is_same_v<remove_all_const_t<std::decay_t<T>>, char *>;
-
-template <typename T>
-concept CString = is_string_v<T>;
+concept CString = std::is_same_v<std::remove_cvref_t<T>, string_t> ||
+                  std::is_same_v<remove_all_const_t<std::decay_t<T>>, char*>;
 
 
 // Conversions

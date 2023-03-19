@@ -100,9 +100,6 @@ public:
     constexpr auto at(std::int64_t) const -> const var&;
     constexpr auto length() const -> var;
 
-
-    // consteval auto to_runtime() const;
-
     friend auto operator<<(std::ostream&, const var&) -> std::ostream&;
     friend auto operator>>(std::istream&, var&) -> std::istream&;
 
@@ -115,15 +112,18 @@ private:
     data_t data;
 };
 
+// Checks for js interface complience
 static_assert(Interfaces::CArray<var>);
 static_assert(Interfaces::CObject<var>);
 
 // Constant to return from functions
 inline const var undefined_var;
 
+// Shorthand
+#define IS std::holds_alternative
+
 constexpr auto typeof_impl(const var& variable) -> const char*
 {
-    // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/typeof
     return  std::visit(
                 overloaded{
                     [](undefined_t) { return "undefined"; },
@@ -157,58 +157,58 @@ constexpr bool strict_equal_impl(const T1& v1, const T2& v2)
     {
         if constexpr (std::same_as<Type2, undefined_t>)
         {
-            return std::holds_alternative<undefined_t>(v1.data);
+            return IS<undefined_t>(v1.data);
         }
         if constexpr (std::same_as<Type2, null_t>)
         {
-            return std::holds_alternative<null_t>(v1.data);
+            return IS<null_t>(v1.data);
         }
         else if constexpr (std::same_as<Type2, function_t>)
         {
-            return std::holds_alternative<function_t>(v1.data) and (std::get<function_t>(v1.data) == v2);
+            return IS<function_t>(v1.data) and (std::get<function_t>(v1.data) == v2);
         }
         else if constexpr (std::integral<Type2>)
         {
-            return (std::holds_alternative<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
-                (std::holds_alternative<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
+            return (IS<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
+                (IS<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
         }
         else if constexpr (std::floating_point<Type2>)
         {
-            return (std::holds_alternative<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
-                (std::holds_alternative<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
+            return (IS<integer_t>(v1.data) and (std::get<integer_t>(v1.data) == v2)) or
+                (IS<float_t>(v1.data) and (std::get<float_t>(v1.data) == v2));
         }
         else if constexpr (CString<Type2>)
         {
-            return (std::holds_alternative<string_t>(v1.data) and (std::get<string_t>(v1.data) == v2));
+            return (IS<string_t>(v1.data) and (std::get<string_t>(v1.data) == v2));
         }
     }
     else if (std::same_as<Type2, var>)
     {
         if constexpr (std::same_as<Type1, undefined_t>)
         {
-            return std::holds_alternative<undefined_t>(v2.data);
+            return IS<undefined_t>(v2.data);
         }
         if constexpr (std::same_as<Type1, null_t>)
         {
-            return std::holds_alternative<null_t>(v2.data);
+            return IS<null_t>(v2.data);
         }
         else if constexpr (std::same_as<Type1, function_t>)
         {
-            return std::holds_alternative<function_t>(v2.data) and (std::get<function_t>(v2.data) == v1);
+            return IS<function_t>(v2.data) and (std::get<function_t>(v2.data) == v1);
         }
         else if constexpr (std::integral<Type1>)
         {
-            return (std::holds_alternative<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
-                (std::holds_alternative<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
+            return (IS<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
+                (IS<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
         }
         else if constexpr (std::floating_point<Type1>)
         {
-            return (std::holds_alternative<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
-                (std::holds_alternative<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
+            return (IS<integer_t>(v2.data) and (std::get<integer_t>(v2.data) == v1)) or
+                (IS<float_t>(v2.data) and (std::get<float_t>(v2.data) == v1));
         }
         else if constexpr (CString<Type1>)
         {
-            return (std::holds_alternative<string_t>(v2.data) and (std::get<string_t>(v2.data) == v1));
+            return (IS<string_t>(v2.data) and (std::get<string_t>(v2.data) == v1));
         }
     }
 }
@@ -295,13 +295,13 @@ var::var(const Blob::CIsTuple auto& repr)
 
 constexpr auto var::sizes_count() const -> std::size_t
 {
-    return  std::visit(
+    return std::visit(
         overloaded{
-            [&](undefined_t) { return 1uz; },
-            [&](null_t) { return 1uz; },
-            [&](CArithmetic auto) { return 1uz; },
-            [&](function_t) { return 1uz; },
-            [&](const string_t&) { return 1uz; },
+            [&](undefined_t) -> std::size_t { return 1; },
+            [&](null_t) -> std::size_t { return 1; },
+            [&](CArithmetic auto) -> std::size_t { return 1; },
+            [&](function_t) -> std::size_t { return 1; },
+            [&](const string_t&) -> std::size_t { return 1; },
             invalid_type<std::size_t, array_t>(),  // TODO: implement sizes_count
             invalid_type<std::size_t, object_t>(),  // TODO: implement sizes_count
         },
@@ -394,14 +394,14 @@ constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT
                     invalid_type<data_t, undefined_t, Type>(),
                     invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto arg) -> data_t {
-                        if constexpr (std::is_same_v<Type, string_t>)
-                            return operand + sh::to_string(arg);
+                        if constexpr (std::same_as<Type, string_t>)
+                            return string_t(operand).append(sh::to_string(arg));
                         else
                             return operand + arg;
                     },
                     [&](const string_t& arg) -> data_t {
-                        if constexpr (std::is_same_v<Type, string_t>)
-                            return operand + arg;
+                        if constexpr (std::same_as<Type, string_t>)
+                            return string_t(operand).append(arg);
                         else
                             return sh::to_string(operand).append(arg);
                     },
@@ -416,35 +416,17 @@ constexpr auto var::operator+(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT
 constexpr auto var::operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto& operand) const -> var
 {
     using Type = std::remove_cvref_t<decltype(operand)>;
-    return  std::visit(
-                overloaded{
-                    invalid_type<data_t, undefined_t, Type>(),
-                    invalid_type<data_t, null_t, Type>(),
-                    [&](CArithmetic auto arg) -> data_t { return arg - operand; },
-                    [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
-                    invalid_type<data_t, array_t, Type>(),
-                    invalid_type<data_t, object_t, Type>(),
-                    invalid_type<data_t, function_t, Type>(),
-                },
-                this->data
-            );
+    if (IS<integer_t>(this->data)) return std::get<integer_t>(this->data) - operand;
+    if (IS<float_t>(this->data)) return std::get<float_t>(this->data) - operand;
+    if (IS<bool_t>(this->data)) return static_cast<Type>(std::get<bool_t>(this->data)) - operand;
+    throw std::invalid_argument{""};
 }
 
 constexpr auto var::operator*(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto& operand) const -> var
 {
-    using Type = std::remove_cvref_t<decltype(operand)>;
-    return  std::visit(
-                overloaded{
-                    invalid_type<data_t, undefined_t, Type>(),
-                    invalid_type<data_t, null_t, Type>(),
-                    [&](CArithmetic auto num) -> data_t { return num * operand; },
-                    [&](string_t str_copy) -> data_t { return sh::string_multiplication(str_copy, operand); },
-                    invalid_type<data_t, array_t, Type>(),
-                    invalid_type<data_t, object_t, Type>(),
-                    invalid_type<data_t, function_t, Type>(),
-                },
-                this->data
-            );
+    if (IS<integer_t>(this->data)) return std::get<integer_t>(this->data) * operand;
+    if (IS<float_t>(this->data)) return std::get<float_t>(this->data) * operand;
+    return NaN;
 }
 
 constexpr auto var::operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto& operand) const -> var
@@ -454,8 +436,8 @@ constexpr auto var::operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION
                 overloaded{
                     invalid_type<data_t, undefined_t, Type>(),
                     invalid_type<data_t, null_t, Type>(),
-                    [&](CArithmetic auto arg) -> data_t { return arg / operand; },
-                    [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
+                    [&](CArithmetic auto arg) -> data_t { return static_cast<float_t>(arg) / operand; },
+                    [](const string_t&) -> data_t { return NaN; },
                     invalid_type<data_t, array_t, Type>(),
                     invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
@@ -474,7 +456,7 @@ constexpr auto var::operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION
                     [&](bool_t arg) -> data_t { return arg % operand; },
                     [&](integer_t arg) -> data_t { return arg % operand; },
                     [&](float_t arg) -> data_t {
-                        if consteval { throw std::invalid_argument{"Cannot use operator% on doubles in compiletime"}; }
+                        if consteval { throw std::invalid_argument{"Cannot use operator% on doubles in compiletime"}; }  // TODO: implement as loop with decrement
                         else { return std::fmod(arg, operand); }
                     },  // TODO:
                     invalid_type<data_t, string_t, Type>(),
@@ -500,7 +482,7 @@ constexpr auto operator-(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXC
                     invalid_type<data_t, undefined_t, Type>(),
                     invalid_type<data_t, null_t, Type>(),
                     [&](CArithmetic auto arg) -> data_t { return operand - arg; },
-                    [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },
+                    [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator- on strings"}; },  // TODO: check if num
                     invalid_type<data_t, array_t, Type>(),
                     invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
@@ -521,8 +503,8 @@ constexpr auto operator/(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXC
                 overloaded{
                     invalid_type<data_t, undefined_t, Type>(),
                     invalid_type<data_t, null_t, Type>(),
-                    [&](CArithmetic auto arg) -> data_t { return operand / arg; },
-                    [](const string_t&) -> data_t { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
+                    [&](CArithmetic auto arg) -> data_t { return static_cast<float_t>(operand) / arg; },
+                    [](const string_t&) -> data_t { return NaN; },
                     invalid_type<data_t, array_t, Type>(),
                     invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
@@ -540,11 +522,11 @@ constexpr auto operator%(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXC
                     invalid_type<data_t, null_t, Type>(),
                     [&](integer_t arg) -> data_t { return operand % arg; },
                     [&](float_t arg) -> data_t  {
-                        if consteval { throw std::invalid_argument{"Cannot use operator% on doubles in compiletime"}; }
+                        if consteval { throw std::invalid_argument{"Cannot use operator% on doubles in compiletime"}; }  // TODO: implement as loop with decrement
                         else { return std::fmod(operand, arg); }
                     },  // TODO:
                     [&](bool_t arg)-> data_t  { return operand % arg; },
-                    [](const string_t&)-> data_t  { throw std::invalid_argument{"Cannot use operator% on strings"}; },
+                    [](const string_t&)-> data_t  { return NaN; },
                     invalid_type<data_t, array_t, Type>(),
                     invalid_type<data_t, object_t, Type>(),
                     invalid_type<data_t, function_t, Type>(),
@@ -561,11 +543,11 @@ constexpr auto var::operator+=(const CType<EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJEC
             invalid_type<void, undefined_t, Type>(),
             invalid_type<void, null_t, Type>(),
             [&](CArithmetic auto num) {
-                if constexpr (CString<Type>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};  // TODO: js style
+                if constexpr (CString<Type>) data = data_t(sh::to_string(num) + operand);
                 else data = data_t(num + operand);
             },
             [&](string_t& str) {
-                if constexpr (CArithmetic<Type>) throw std::invalid_argument{"Cannot perform addition of arithmetic type and string"};  // TODO: js style
+                if constexpr (CArithmetic<Type>) data = data_t(str + operand);  // TODO: js style
                 else str += operand;
             },
             invalid_type<void, array_t, Type>(),
@@ -595,22 +577,11 @@ constexpr auto var::operator-=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
     return *this;
 }
 
-
 constexpr auto var::operator*=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTION, EXCL_OBJECT, EXCL_UNDEFINED> auto& operand) -> var&
 {
-    using Type = std::remove_cvref_t<decltype(operand)>;
-    std::visit(
-        overloaded{
-            invalid_type<void, undefined_t, Type>(),
-            invalid_type<void, null_t, Type>(),
-            [&](CArithmetic auto num) { this->data = data_t(num * operand); },
-            [&](string_t& str) { sh::string_multiplication(str, operand); },
-            invalid_type<void, array_t, Type>(),
-            invalid_type<void, object_t, Type>(),
-            invalid_type<void, function_t, Type>(),
-        },
-        this->data
-    );
+    if (IS<integer_t>(this->data)) this->data = static_cast<data_t>(std::get<integer_t>(this->data) * operand);
+    if (IS<float_t>(this->data))   this->data = static_cast<data_t>(std::get<float_t>(this->data) * operand);
+    this->data = static_cast<data_t>(NaN);
     return *this;
 }
 
@@ -621,7 +592,7 @@ constexpr auto var::operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
         overloaded{
             invalid_type<void, undefined_t, Type>(),
             invalid_type<void, null_t, Type>(),
-            [&](CArithmetic auto data) { this->data = data_t(data / operand); },
+            [&](CArithmetic auto data) { this->data = data_t(static_cast<float_t>(data) / operand); },
             [](const string_t&) { throw std::invalid_argument{"Cannot use operator/ on strings"}; },
             invalid_type<void, array_t, Type>(),
             invalid_type<void, object_t, Type>(),
@@ -632,132 +603,54 @@ constexpr auto var::operator/=(const CType<EXCL_STRING, EXCL_ARRAY, EXCL_FUNCTIO
     return *this;
 }
 
-constexpr std::optional<integer_t> stoll(const char* str, int base = 10) noexcept
-{
-    integer_t result = 0;
-    bool is_negative = false;
-    while (*str == ' ' || *str == '\t') ++str; // skip whitespace
-    if (*str == '+') ++str;
-    else if (*str == '-')
-    {
-        ++str;
-        is_negative = true;
-    }
-    while (*str != '\0')
-    {
-        if (*str == ' ' || *str == '\t') break;  // stop if whitespace
-        if (*str < '0' || *str > '9') return std::nullopt;
-        int digit = *str - '0';
-        if (digit >= base) return std::nullopt;
-        integer_t new_result = result * base + digit;
-        if (new_result < result || new_result > std::numeric_limits<integer_t>::max()) return std::nullopt;
-        result = new_result;
-        ++str;
-    }
-    return is_negative ? -result : result;
-}
-
-constexpr std::optional<float_t> stold(const char* str) noexcept {
-    const char* p = str;
-    bool negative = false;
-    while (std::isspace(*p)) {
-        ++p;
-    }
-    if (*p == '-') {
-        negative = true;
-        ++p;
-    } else if (*p == '+') {
-        ++p;
-    }
-    float_t val = 0;
-    bool has_digits = false;
-    while (std::isdigit(*p)) {
-        has_digits = true;
-        val = val * 10 + (*p - '0');
-        ++p;
-    }
-    if (*p == '.') {
-        ++p;
-        float_t frac = 0.1;
-        while (std::isdigit(*p)) {
-            has_digits = true;
-            val += frac * (*p - '0');
-            frac *= 0.1;
-            ++p;
-        }
-    }
-    if (!has_digits) {
-        return std::nullopt;
-    }
-    while (std::isspace(*p)) {
-        ++p;
-    }
-    if (*p != '\0') {
-        return std::nullopt;
-    }
-    if (negative) {
-        val = -val;
-    }
-    if (val > std::numeric_limits<float_t>::max() ||
-        val < std::numeric_limits<float_t>::lowest()) {
-        return std::nullopt;
-    }
-    return val;
-}
-
-constexpr std::optional<integer_t> stoll(const string_t& str, int base = 10) { return stoll(str.c_str()); }
-
-constexpr std::optional<float_t> stold(const string_t& str) noexcept { return stold(str.c_str()); }
-
-
 constexpr bool var::operator==(const CType auto& other) const
 {
     using Type = std::remove_cvref_t<decltype(other)>;
 
     if constexpr (std::same_as<Type, undefined_t> or std::same_as<Type, undefined_t>)
     {
-        return std::holds_alternative<undefined_t>(this->data) or std::holds_alternative<null_t>(this->data);
+        return IS<undefined_t>(this->data) or IS<null_t>(this->data);
     }
     else if constexpr (std::same_as<Type, function_t>)
     {
-        return std::holds_alternative<function_t>(this->data) and (std::get<function_t>(this->data) == other);
+        return IS<function_t>(this->data) and (std::get<function_t>(this->data) == other);
     }
     else if constexpr (std::integral<Type>)
     {
-        return (std::holds_alternative<integer_t>(this->data) and (std::get<integer_t>(this->data) == other)) or
-            (std::holds_alternative<float_t>(this->data) and (std::get<float_t>(this->data) == other)) or
-            (std::holds_alternative<bool_t>(this->data) and (std::get<bool_t>(this->data) == other)) or
-            (std::holds_alternative<string_t>(this->data) and (
+        return (IS<integer_t>(this->data) and (std::get<integer_t>(this->data) == other)) or
+            (IS<float_t>(this->data) and (std::get<float_t>(this->data) == other)) or
+            (IS<bool_t>(this->data) and (std::get<bool_t>(this->data) == other)) or
+            (IS<string_t>(this->data) and (
                 [&]{
-                    auto res = stoll(std::get<string_t>(this->data).c_str());
+                    auto res = sh::stoll(std::get<string_t>(this->data).c_str());
                     return res.has_value() and (res.value() == other);
                 }()
             ));
     }
     else if constexpr (std::floating_point<Type>)
     {
-        return (std::holds_alternative<integer_t>(this->data) and (std::get<integer_t>(this->data) == other)) or
-            (std::holds_alternative<float_t>(this->data) and (std::get<float_t>(this->data) == other)) or
-            (std::holds_alternative<bool_t>(this->data) and (std::get<bool_t>(this->data) == other)) or
-            (std::holds_alternative<string_t>(this->data) and (
+        return (IS<integer_t>(this->data) and (std::get<integer_t>(this->data) == other)) or
+            (IS<float_t>(this->data) and (std::get<float_t>(this->data) == other)) or
+            (IS<bool_t>(this->data) and (std::get<bool_t>(this->data) == other)) or
+            (IS<string_t>(this->data) and (
                 [&]{
-                    auto res = stold(std::get<string_t>(this->data));
+                    auto res = sh::stold(std::get<string_t>(this->data));
                     return res.has_value() and (res.value() == other);
                 }()
             ));
     }
     else if constexpr (CString<Type>)
     {
-        return (std::holds_alternative<string_t>(this->data) and (std::get<string_t>(this->data) == other)) or
-            (std::holds_alternative<integer_t>(this->data) and (
+        return (IS<string_t>(this->data) and (std::get<string_t>(this->data) == other)) or
+            (IS<integer_t>(this->data) and (
                 [&]{
-                    auto res = stoll(other);
+                    auto res = sh::stoll(other);
                     return res.has_value() and (res.value() == std::get<integer_t>(this->data));
                 }()
             )) or
-            (std::holds_alternative<float_t>(this->data) and (
+            (IS<float_t>(this->data) and (
                 [&]{
-                    auto res = stold(other);
+                    auto res = sh::stold(other);
                     std::cout << (res.value() == std::get<float_t>(this->data)) << '\n';
                     return res.has_value() and (res.value() == std::get<float_t>(this->data));
                 }()
@@ -769,58 +662,55 @@ constexpr bool var::operator==(const CType auto& other) const
 
 constexpr bool var::operator==(const var& other) const
 {
-    if (std::holds_alternative<undefined_t>(other.data))    return *this == std::get<function_t>(other.data);
-    else if (std::holds_alternative<null_t>(other.data))    return *this == std::get<null_t>(other.data);
-    else if (std::holds_alternative<bool_t>(other.data))    return *this == std::get<bool_t>(other.data);
-    else if (std::holds_alternative<integer_t>(other.data)) return *this == std::get<integer_t>(other.data);
-    else if (std::holds_alternative<float_t>(other.data))   return *this == std::get<float_t>(other.data);
-    else if (std::holds_alternative<string_t>(other.data))  return *this == std::get<string_t>(other.data);
-    else if (std::holds_alternative<array_t>(other.data))   return *this == std::get<array_t>(other.data);
-    else if (std::holds_alternative<object_t>(other.data))  return *this == std::get<object_t>(other.data);
+    if (IS<undefined_t>(other.data))    return *this == std::get<function_t>(other.data);
+    else if (IS<null_t>(other.data))    return *this == std::get<null_t>(other.data);
+    else if (IS<bool_t>(other.data))    return *this == std::get<bool_t>(other.data);
+    else if (IS<integer_t>(other.data)) return *this == std::get<integer_t>(other.data);
+    else if (IS<float_t>(other.data))   return *this == std::get<float_t>(other.data);
+    else if (IS<string_t>(other.data))  return *this == std::get<string_t>(other.data);
+    else if (IS<array_t>(other.data))   return *this == std::get<array_t>(other.data);
+    else if (IS<object_t>(other.data))  return *this == std::get<object_t>(other.data);
+    // std::unreachible();
 }
 
 constexpr auto var::operator()(object_t& args) -> var
 {
-    if (std::holds_alternative<function_t>(this->data)) {
+    if (IS<function_t>(this->data))
         return std::get<function_t>(this->data)(args);
-    }
     throw std::invalid_argument{"not a function"};
 }
 
 constexpr auto var::operator[](std::string_view name) -> var&
 {
-    if (std::holds_alternative<object_t>(this->data)) {
+    if (IS<object_t>(this->data)) {
         object_t& obj = std::get<object_t>(this->data);
-        if (auto it = std::ranges::find_if(obj, [=](const auto& field){ return field.first == name; }); it != obj.end())
-        {
-            return it->second;
-        }
+        auto it = std::ranges::find_if(obj,
+            [=](const field_t& field) { return field.first == name.data(); }
+        );
+        if (it != obj.end()) return it->second;
     }
     return const_cast<var&>(undefined_var);
 }
 
 constexpr auto var::operator[](std::string_view name) const -> const var&
 {
-    if (std::holds_alternative<object_t>(this->data)) {
+    if (IS<object_t>(this->data)) {
         const object_t& obj = std::get<object_t>(this->data);
-        if (auto it = std::ranges::find_if(obj, [=](const auto& field){ return field.first == name; }); it != obj.end())
-        {
-            return it->second;
-        }
+        auto it = std::ranges::find_if(obj,
+            [=](const field_t& field) { return field.first == name.data(); }
+        );
+        if (it != obj.end()) return it->second;
     }
     return undefined_var;
 }
 
 constexpr auto var::keys() const -> var
 {
-    if (std::holds_alternative<object_t>(this->data)) {
+    if (IS<object_t>(this->data)) {
         const object_t& obj = std::get<object_t>(this->data);
         array_t obj_keys;
         obj_keys.reserve(obj.size());
-        for (const auto &field : obj)
-        {
-            obj_keys.push_back(field.first);
-        }
+        for (const auto &field : obj) obj_keys.push_back(field.first);
         return obj_keys;
     }
     return undefined_var;
@@ -828,7 +718,7 @@ constexpr auto var::keys() const -> var
 
 constexpr auto var::operator[](std::size_t index) -> var&
 {
-    if (std::holds_alternative<array_t>(this->data)) {
+    if (IS<array_t>(this->data)) {
         array_t& arr = std::get<array_t>(this->data);
         if (arr.size() - 1 < index) return const_cast<var&>(undefined_var);
         return arr[index];
@@ -838,7 +728,7 @@ constexpr auto var::operator[](std::size_t index) -> var&
 
 constexpr auto var::operator[](std::size_t index) const -> const var&
 {
-    if (std::holds_alternative<array_t>(this->data)) {
+    if (IS<array_t>(this->data)) {
         const array_t& arr = std::get<array_t>(this->data);
         if (arr.size() - 1 < index) return undefined_var;
         return arr[index];
@@ -848,7 +738,7 @@ constexpr auto var::operator[](std::size_t index) const -> const var&
 
 constexpr auto var::at(std::int64_t index) -> var&
 {
-    if (std::holds_alternative<array_t>(this->data)) {
+    if (IS<array_t>(this->data)) {
         array_t& arr = std::get<array_t>(this->data);
         if (index < 0) index = static_cast<std::int64_t>(arr.size()) + index;
         if (arr.size() - 1 < static_cast<std::size_t>(index)) return const_cast<var&>(undefined_var);
@@ -859,7 +749,7 @@ constexpr auto var::at(std::int64_t index) -> var&
 
 constexpr auto var::at(std::int64_t index) const -> const var&
 {
-    if (std::holds_alternative<array_t>(this->data)) {
+    if (IS<array_t>(this->data)) {
         const array_t& arr = std::get<array_t>(this->data);
         if (index < 0) index = static_cast<std::int64_t>(arr.size()) + index;
         if (arr.size() - 1 < static_cast<std::size_t>(index)) return undefined_var;
@@ -870,7 +760,7 @@ constexpr auto var::at(std::int64_t index) const -> const var&
 
 constexpr auto var::length() const -> var
 {
-    if (std::holds_alternative<array_t>(this->data)) {
+    if (IS<array_t>(this->data)) {
         return std::get<array_t>(this->data).size();
     }
     return undefined_var;
@@ -1010,4 +900,6 @@ constexpr var::operator data_t() const {
 
 }  // namespace DynamicTyping
 
-#endif
+#undef IS
+
+#endif  // DYNAMIC_TYPING_H
