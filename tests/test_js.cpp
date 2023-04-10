@@ -8,11 +8,22 @@ using namespace DynamicTyping;
 
 int main()
 {
-    var variable = 1;
-    var variable2;
-    std::cout << typeof_impl(variable2) << '\n';
-    std::cout << variable2 << '\n';
+    var variable;
     std::cout << variable << ' ' << typeof_impl(variable) << '\n';
-    std::cin >> variable;
-    std::cout << variable << ' ' << typeof_impl(variable) << std::endl;
+
+    #define C ,
+    #define test(val)\
+        { \
+            var variable = val; \
+            std::cout << variable << ' ' << typeof_impl(variable) << '\n'; \
+        }
+
+    test(1);
+    test(1.6);
+    test(array_t{1 C 2 C 3 C 4});
+    test(object_t{{"name" C "max"} C {"age" C 23}});
+    test(nullptr);
+    test(NaN);
+    test(true);
+    test("asdas");
 }

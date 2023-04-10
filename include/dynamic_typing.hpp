@@ -131,14 +131,15 @@ constexpr auto typeof_impl(const var& variable) -> const char*
                     [](null_t) { return "object (NULL)"; },
                     [](integer_t) { return "number (integer)"; },
                     [](float_t) { return "number (float)"; },
+                    [](const array_t&) { return "object (array)"; },
 #else
                     [](null_t) { return "object"; },
                     [](integer_t) { return "number"; },
                     [](float_t) { return "number"; },
+                    [](const array_t&) { return "object"; },
 #endif
                     [](bool_t) { return "boolean"; },
                     [](const string_t&) { return "string"; },
-                    [](const array_t&) { return "array"; },
                     [](const object_t&) { return "object"; },
                     [](const function_t&) { return "function"; },
                 },
