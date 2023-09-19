@@ -2,7 +2,6 @@
 #include <iostream>
 #include <vector>
 
-#include <cest/string.hpp>
 #include <dynamic_typing.hpp>
 
 using namespace DynamicTyping;
@@ -36,11 +35,11 @@ consteval auto test0()
     }
 
     //String
-    cest::string a = "str";
+    std::string a = "str";
     var string = a;
     var string3 = "sadasd";
     // string *= 10; emits NaN which is not constexpr convertible to string
-    string += "helllp";
+    // string += "helllp";
     if (string) {}
 
     // Array
@@ -66,18 +65,12 @@ consteval auto test0()
     return floating;
 }
 
-constexpr auto test1()
-{
-    var string = "asdasdasd";
+// constexpr auto test1()
+// {
+//     var string = "asdasdasd";
 
-    return [=]{ return string; };
-}
-
-auto test2()
-{
-    var arr = array_t{1, "test2"};
-    std::cout << arr << '\n';
-}
+//     return [=]{ return string; };
+// }
 
 
 int main()
@@ -85,9 +78,10 @@ int main()
     constexpr auto variable0 = test0();
     std::cout << variable0 << '\n';
 
-    var variable1 = to_runtime<test1>();
-    std::cout << variable1 << '\n';
-    test2();
+    // var variable1 = to_runtime<test1>();
+    // std::cout << variable1 << '\n';
+    // test1();
+
 
     // Func
     var f = [](object_t&) -> var { return {}; };

@@ -34,9 +34,9 @@ auto test()
     }
 
     //String
-    cest::string a = "str";
+    std::string a = "str";
     var string = a;
-    // var string2 = std::string("str").data();
+    var string2 = std::string("str").data();
     var string3 = "sadasd";
     string *= 10;
     string += "helllp";

@@ -21,5 +21,4 @@ int main()
     num = 1;
     var str2 = "1";
     if (num == str2) std::cout << "Eq\n";
-
 }

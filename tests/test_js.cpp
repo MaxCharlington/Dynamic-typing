@@ -11,7 +11,7 @@ int main()
     var variable;
     std::cout << variable << ' ' << typeof_impl(variable) << '\n';
 
-    #define C ,
+    #define C ,  // workaround to use commas in macro
     #define test(val)\
         { \
             var variable = val; \
