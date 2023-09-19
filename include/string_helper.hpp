@@ -1,5 +1,4 @@
-#ifndef STRING_HELPER_H
-#define STRING_HELPER_H
+#pragma once
 
 #include <cstdint>
 #include <charconv>
@@ -12,18 +11,9 @@ namespace DynamicTyping::StringHelpers {
 
 using namespace Types;
 
-/// @brief Multiplies string implace
-/// @param str string to multiply
-/// @param times count of repetitions
-[[deprecated]] constexpr void string_multiplication(string_t& str, std::integral auto times) {  // TODO: move to cpp_helpers repo
-    if (times <= 0) throw std::invalid_argument{"Cannot multiply string by non positive integral value"};
+// TODO: str is number check func
 
-    string_t orig{str};
-    str.clear();
-    str.reserve(orig.length() * times);
-    for (std::size_t i = 0; i < static_cast<std::size_t>(times); i++) str += orig;
-}
-
+// TODO: implement with from_chars with g++13
 constexpr std::optional<integer_t> stoll(const char* str, int base = 10) noexcept
 {
     integer_t result = 0;
@@ -104,14 +94,16 @@ constexpr std::optional<float_t> stold(const string_t& str) noexcept { return st
 /// @brief Compiletime capable std::to_string
 /// @param num arithmetic type to represent as string
 /// @return string representation of a given value
-constexpr string_t to_string(th::CArithmetic auto num) {
+constexpr string_t to_string(th::Arithmetic auto num) {
     if constexpr (std::same_as<bool_t, decltype(num)>)
     {
         return num ? "true" : "false";
     }
-    else
+    else if (std::same_as<float_t, decltype(num)> and num == NaN)
     {
-        if (std::same_as<float_t, decltype(num)> and num == NaN) return "NaN";
+        return "NaN";
+    }
+    else {
         char str[32];
         std::to_chars(str, std::end(str), num);
         return str;
@@ -119,5 +111,3 @@ constexpr string_t to_string(th::CArithmetic auto num) {
 }
 
 }  // namespace
-
-#endif  // STRING_HELPER_H
